@@ -7,10 +7,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     Image, PageBreak, KeepTogether, HRFlowable
 )
-from reportlab.graphics.shapes import Drawing, Rect, String, Line
-from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.platypus.flowables import Flowable
-from reportlab.pdfgen import canvas
 import matplotlib.pyplot as plt
 import io
 import pandas as pd
@@ -23,7 +20,6 @@ class PDFReportGenerator:
     """
     
     def __init__(self):
-        self.styles = self._create_styles()
         self.colors = {
             'navy': colors.HexColor('#0A2342'),
             'medium_navy': colors.HexColor('#1B4F72'),
@@ -37,13 +33,13 @@ class PDFReportGenerator:
             'border': colors.HexColor('#E0E6ED'),
             'white': colors.white,
         }
+        self.styles = self._create_styles()
         
     def _create_styles(self):
         styles = getSampleStyleSheet()
         
         styles.add(ParagraphStyle(
             name='CoverTitle',
-            parent=styles['Title'],
             fontSize=32,
             textColor=colors.HexColor('#0A2342'),
             spaceAfter=12,
@@ -54,7 +50,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='CoverSubtitle',
-            parent=styles['Normal'],
             fontSize=16,
             textColor=colors.HexColor('#F0A500'),
             spaceAfter=30,
@@ -65,7 +60,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='SectionHeader',
-            parent=styles['Heading2'],
             fontSize=20,
             textColor=colors.HexColor('#0A2342'),
             spaceAfter=16,
@@ -77,7 +71,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='SubSectionHeader',
-            parent=styles['Heading3'],
             fontSize=14,
             textColor=colors.HexColor('#1B4F72'),
             spaceAfter=10,
@@ -87,18 +80,7 @@ class PDFReportGenerator:
         ))
         
         styles.add(ParagraphStyle(
-            name='BodyText',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=15,
-            textColor=colors.HexColor('#1A1A2E'),
-            alignment=TA_JUSTIFY,
-            fontName='Helvetica',
-        ))
-        
-        styles.add(ParagraphStyle(
             name='MetricValue',
-            parent=styles['Normal'],
             fontSize=28,
             textColor=colors.HexColor('#0A2342'),
             alignment=TA_CENTER,
@@ -108,7 +90,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='MetricLabel',
-            parent=styles['Normal'],
             fontSize=9,
             textColor=colors.HexColor('#6C757D'),
             alignment=TA_CENTER,
@@ -118,7 +99,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='InsightBullet',
-            parent=styles['Normal'],
             fontSize=10,
             leading=16,
             textColor=colors.HexColor('#1A1A2E'),
@@ -129,7 +109,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='CaptionText',
-            parent=styles['Normal'],
             fontSize=8,
             textColor=colors.HexColor('#6C757D'),
             alignment=TA_CENTER,
@@ -139,7 +118,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='WarningText',
-            parent=styles['Normal'],
             fontSize=10,
             leading=15,
             textColor=colors.HexColor('#C0392B'),
@@ -148,7 +126,6 @@ class PDFReportGenerator:
         
         styles.add(ParagraphStyle(
             name='SuccessText',
-            parent=styles['Normal'],
             fontSize=10,
             leading=15,
             textColor=colors.HexColor('#1E8449'),
@@ -160,11 +137,9 @@ class PDFReportGenerator:
     # ── Page Template Callbacks ─────────────────────────────────
     
     def _on_first_page(self, canvas_obj, doc):
-        """Header/footer for first page."""
         self._draw_footer(canvas_obj, doc)
     
     def _on_later_pages(self, canvas_obj, doc):
-        """Header/footer for subsequent pages."""
         self._draw_header(canvas_obj, doc)
         self._draw_footer(canvas_obj, doc)
     
@@ -217,9 +192,6 @@ class PDFReportGenerator:
         figures: list = None,
         cleaned_df: pd.DataFrame = None
     ) -> io.BytesIO:
-        """
-        Generate the complete professional PDF report.
-        """
         buffer = io.BytesIO()
         
         doc = SimpleDocTemplate(
@@ -235,7 +207,6 @@ class PDFReportGenerator:
         
         story = []
         
-        # Build report sections
         story.extend(self._cover_page(overview))
         story.append(PageBreak())
         story.extend(self._executive_summary(overview, insights))
@@ -262,17 +233,14 @@ class PDFReportGenerator:
         
         elements.append(Spacer(1, 1.2*inch))
         
-        # Gold top bar
         elements.append(HRFlowable(
             width="60%", thickness=4, color=self.colors['gold'],
             spaceAfter=30, spaceBefore=0
         ))
         
-        # Title
         elements.append(Paragraph("STATSPRO", self.styles['CoverTitle']))
         elements.append(Paragraph("Professional Statistical Analysis Report", self.styles['CoverSubtitle']))
         
-        # Gold bottom bar
         elements.append(HRFlowable(
             width="60%", thickness=4, color=self.colors['gold'],
             spaceAfter=40, spaceBefore=10
@@ -280,7 +248,6 @@ class PDFReportGenerator:
         
         elements.append(Spacer(1, 0.5*inch))
         
-        # Info cards
         card_data = [
             ['Dataset Overview', ''],
             ['Total Rows', f"{overview['rows']:,}"],
@@ -311,7 +278,6 @@ class PDFReportGenerator:
         ]))
         
         elements.append(table)
-        
         elements.append(Spacer(1, 1*inch))
         elements.append(Paragraph("© 2025 StatsPro | Confidential | All Rights Reserved", self.styles['CaptionText']))
         
@@ -326,7 +292,6 @@ class PDFReportGenerator:
         elements.append(self.GoldDivider(450))
         elements.append(Spacer(1, 16))
         
-        # KPI cards in 3-column layout
         quality = overview['quality_score']
         completeness = 100 - overview['missing_percentage']
         readiness = insights.get('readiness_score', 0) if insights else 0
@@ -357,7 +322,6 @@ class PDFReportGenerator:
         elements.append(kpi_table)
         elements.append(Spacer(1, 24))
         
-        # Key Findings
         elements.append(Paragraph("Key Findings", self.styles['SubSectionHeader']))
         
         if insights:
@@ -366,7 +330,6 @@ class PDFReportGenerator:
         
         elements.append(Spacer(1, 12))
         
-        # Warnings
         if insights and insights.get('warnings'):
             elements.append(Paragraph("⚠ Warnings", self.styles['SubSectionHeader']))
             for w in insights['warnings'][:3]:
@@ -383,20 +346,12 @@ class PDFReportGenerator:
         elements.append(self.GoldDivider(450))
         elements.append(Spacer(1, 16))
         
-        # Column summary
         elements.append(Paragraph("Column Summary", self.styles['SubSectionHeader']))
         
-        col_info = [
-            ['Column Name', 'Data Type', 'Missing', 'Unique Values'],
-        ]
+        col_info = [['Column Name', 'Data Type', 'Missing', 'Unique Values']]
         for col in df.columns[:20]:
             missing = df[col].isnull().sum()
-            col_info.append([
-                col,
-                str(df[col].dtype),
-                str(missing),
-                str(df[col].nunique()),
-            ])
+            col_info.append([col, str(df[col].dtype), str(missing), str(df[col].nunique())])
         
         table = Table(col_info, colWidths=[2.2*inch, 1.5*inch, 1.2*inch, 1.3*inch])
         table.setStyle(TableStyle([
@@ -413,7 +368,6 @@ class PDFReportGenerator:
         
         elements.append(table)
         
-        # Missing values
         if overview['total_missing'] > 0:
             elements.append(Spacer(1, 16))
             elements.append(Paragraph("Missing Values Analysis", self.styles['SubSectionHeader']))
@@ -422,11 +376,7 @@ class PDFReportGenerator:
             missing_data = [['Column', 'Missing Count', 'Missing %']]
             for _, row in missing_df.iterrows():
                 if row['Missing Count'] > 0:
-                    missing_data.append([
-                        row['Column'],
-                        str(row['Missing Count']),
-                        f"{row['Missing Percentage']:.1f}%"
-                    ])
+                    missing_data.append([row['Column'], str(row['Missing Count']), f"{row['Missing Percentage']:.1f}%"])
             
             if len(missing_data) > 1:
                 mtable = Table(missing_data, colWidths=[2.5*inch, 1.8*inch, 1.8*inch])
@@ -442,7 +392,6 @@ class PDFReportGenerator:
                 ]))
                 elements.append(mtable)
         
-        # Descriptive statistics
         elements.append(Spacer(1, 16))
         elements.append(Paragraph("Descriptive Statistics", self.styles['SubSectionHeader']))
         
@@ -478,14 +427,12 @@ class PDFReportGenerator:
         elements.append(self.GoldDivider(450))
         elements.append(Spacer(1, 16))
         
-        # Normality
         norm = stats_results.get('normality', pd.DataFrame())
         if not norm.empty:
             elements.append(Paragraph("Normality Tests", self.styles['SubSectionHeader']))
             elements.append(self._build_test_table(norm, ['Column', 'Test', 'Statistic', 'P-Value', 'Normal']))
             elements.append(Spacer(1, 10))
         
-        # Pearson Correlation
         pearson = stats_results.get('pearson_correlation', pd.DataFrame())
         if not pearson.empty:
             elements.append(Paragraph("Pearson Correlations", self.styles['SubSectionHeader']))
@@ -493,14 +440,12 @@ class PDFReportGenerator:
             elements.append(self._build_test_table(top_p, ['Variable 1', 'Variable 2', 'Correlation (r)', 'P-Value', 'Effect Size']))
             elements.append(Spacer(1, 10))
         
-        # ANOVA
         anova = stats_results.get('anova', pd.DataFrame())
         if not anova.empty:
             elements.append(Paragraph("ANOVA Results", self.styles['SubSectionHeader']))
             elements.append(self._build_test_table(anova.head(10), ['Numeric Variable', 'Grouping Variable', 'F-Statistic', 'P-Value', 'Eta-Squared (η²)']))
             elements.append(Spacer(1, 10))
         
-        # VIF
         vif = stats_results.get('vif', pd.DataFrame())
         if not vif.empty:
             elements.append(Paragraph("Multicollinearity (VIF)", self.styles['SubSectionHeader']))
@@ -514,7 +459,6 @@ class PDFReportGenerator:
             
             elements.append(Spacer(1, 10))
         
-        # OLS
         ols_stats = stats_results.get('ols_model_stats', {})
         if ols_stats:
             elements.append(Paragraph(f"OLS Regression — Target: {ols_stats.get('Target', '')}", self.styles['SubSectionHeader']))
@@ -547,7 +491,6 @@ class PDFReportGenerator:
         return elements
     
     def _build_test_table(self, df: pd.DataFrame, columns: list) -> Table:
-        """Build a styled table from a DataFrame."""
         valid_cols = [c for c in columns if c in df.columns]
         data = [valid_cols]
         
@@ -570,7 +513,6 @@ class PDFReportGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]
         
-        # Color p-values
         if 'P-Value' in valid_cols:
             p_idx = valid_cols.index('P-Value')
             for i, row in enumerate(data[1:], start=1):
@@ -594,19 +536,13 @@ class PDFReportGenerator:
         elements.append(self.GoldDivider(450))
         elements.append(Spacer(1, 16))
         
-        chart_names = [
-            "Distribution Analysis",
-            "Correlation Heatmap",
-            "Box Plot Analysis",
-        ]
+        chart_names = ["Distribution Analysis", "Correlation Heatmap", "Box Plot Analysis"]
         
         for i, fig in enumerate(figures[:6]):
             try:
                 name = chart_names[i] if i < len(chart_names) else f"Chart {i+1}"
-                
                 elements.append(Paragraph(name, self.styles['SubSectionHeader']))
                 
-                # Convert matplotlib figure to image
                 img_buffer = io.BytesIO()
                 fig.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', 
                            facecolor='white', edgecolor='none')
@@ -619,7 +555,7 @@ class PDFReportGenerator:
                 
                 img_buffer.close()
                 
-            except Exception as e:
+            except Exception:
                 elements.append(Paragraph(f"Chart {i+1} could not be rendered", self.styles['CaptionText']))
         
         return elements
@@ -634,36 +570,32 @@ class PDFReportGenerator:
         elements.append(Spacer(1, 16))
         
         if not insights:
-            elements.append(Paragraph("No insights available. Run statistical tests first.", self.styles['BodyText']))
+            elements.append(Paragraph("No insights available. Run statistical tests first.", self.styles['Normal']))
             return elements
         
-        # Highlights
         elements.append(Paragraph("✅ Key Highlights", self.styles['SubSectionHeader']))
         for h in insights.get('highlights', [])[:5]:
             elements.append(Paragraph(f"• {h}", self.styles['InsightBullet']))
         
         elements.append(Spacer(1, 12))
         
-        # Warnings
         if insights.get('warnings'):
             elements.append(Paragraph("⚠ Warnings & Alerts", self.styles['SubSectionHeader']))
             for w in insights['warnings'][:5]:
                 elements.append(Paragraph(f"• {w}", self.styles['WarningText']))
             elements.append(Spacer(1, 12))
         
-        # Summary
         if insights.get('summary'):
             elements.append(Paragraph("📋 Summary Notes", self.styles['SubSectionHeader']))
             for s in insights['summary']:
                 elements.append(Paragraph(f"• {s}", self.styles['InsightBullet']))
             elements.append(Spacer(1, 12))
         
-        # Recommendation box
         if insights.get('recommendation'):
             elements.append(Paragraph("💡 Final Recommendation", self.styles['SubSectionHeader']))
             
             rec_box = Table([
-                [Paragraph(insights['recommendation'], self.styles['BodyText'])]
+                [Paragraph(insights['recommendation'], self.styles['Normal'])]
             ], colWidths=[6*inch])
             rec_box.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), self.colors['gold_light']),
@@ -675,6 +607,5 @@ class PDFReportGenerator:
         return elements
 
 
-# Helper function (same as app.py)
 def _corr_col(df):
     return 'Correlation (r)' if 'Correlation (r)' in df.columns else 'Correlation'
