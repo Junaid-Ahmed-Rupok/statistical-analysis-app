@@ -28,23 +28,6 @@ def load_css():
     if css_file.exists():
         with open(css_file) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
-        :root { --primary: #0A2342; --secondary: #1B4F72; --accent: #F0A500; }
-        * { font-family: 'Inter', sans-serif; }
-        h1, h2, h3 { font-family: 'Poppins', sans-serif; }
-        #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
-        [data-testid="stSidebar"] { background: linear-gradient(135deg, #0A2342 0%, #0D2F56 100%); }
-        .stButton > button {
-            background: linear-gradient(135deg, #F0A500, #D49500);
-            color: #0A2342; font-weight: 700; border-radius: 10px;
-            padding: 12px 32px; border: none; transition: all 0.3s ease;
-        }
-        .stButton > button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(240,165,0,0.4); }
-        </style>
-        """, unsafe_allow_html=True)
 
 load_css()
 
@@ -116,7 +99,7 @@ def _corr_col(df):
 with st.sidebar:
     st.markdown("""
     <div style="text-align:center;padding:20px 0;">
-        <h1 style="color:#F0A500;font-size:32px;font-family:'Poppins',sans-serif;margin:0;">📊 StatsPro</h1>
+        <h1 style="color:#F0A500;font-size:32px;font-family:'Poppins',sans-serif;margin:0;">StatsPro</h1>
         <p style="color:white;font-size:14px;opacity:0.9;margin-top:5px;">Professional Statistical Analysis</p>
     </div>
     """, unsafe_allow_html=True)
@@ -124,22 +107,22 @@ with st.sidebar:
     st.markdown("""
     <div style="color:white;padding:10px 0;">
         <h3 style="color:#F0A500;margin-bottom:15px;">How It Works</h3>
-        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📂 <strong>1. Upload your CSV</strong></div>
-        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">⚙️ <strong>2. Auto preprocessing</strong></div>
-        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📊 <strong>3. Full statistical analysis</strong></div>
-        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📄 <strong>4. Download PDF + Excel</strong></div>
+        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;"><strong>1. Upload your CSV</strong></div>
+        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;"><strong>2. Auto preprocessing</strong></div>
+        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;"><strong>3. Full statistical analysis</strong></div>
+        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;"><strong>4. Download PDF + Excel</strong></div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    with st.expander("⚙️ Analysis Settings", expanded=False):
+    with st.expander("Analysis Settings", expanded=False):
         correlation_method = st.selectbox("Correlation Method", ["pearson", "spearman"], index=0)
         handle_outliers    = st.checkbox("Handle Outliers", value=True)
     st.markdown("---")
     st.markdown("""
     <div style="text-align:center;padding:10px 0;">
-        <div style="color:white;font-size:12px;margin:5px 0;">🔒 Private & Secure</div>
-        <div style="color:white;font-size:12px;margin:5px 0;">⚡ Instant Results</div>
-        <div style="color:white;font-size:12px;margin:5px 0;">🆓 Free to Use</div>
+        <div style="color:white;font-size:12px;margin:5px 0;">Private & Secure</div>
+        <div style="color:white;font-size:12px;margin:5px 0;">Instant Results</div>
+        <div style="color:white;font-size:12px;margin:5px 0;">Free to Use</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -170,48 +153,47 @@ st.markdown("""
 # Tabs
 # ------------------------------------------------------------------
 tabs = st.tabs([
-    "📂 Upload & Overview",
-    "⚙️ Preprocessing",
-    "🧪 Statistical Tests",
-    "📈 Visualizations",
-    "💡 AI Insights",
-    "📄 PDF Report"
+    "Upload & Overview",
+    "Preprocessing",
+    "Statistical Tests",
+    "Visualizations",
+    "AI Insights",
+    "PDF Report"
 ])
 
 # ══════════════════════════════════════════════════════════════════
 # TAB 1 — Upload & Overview
 # ══════════════════════════════════════════════════════════════════
 with tabs[0]:
-    st.markdown("### 📂 Upload Your Dataset")
-    
+    st.markdown("### Upload Your Dataset")
+
     uploaded_file = st.file_uploader(
         "Drag & drop your CSV file here or click to browse",
         type=["csv"],
         help="Supports CSV files up to 200MB"
     )
-    
-    # Sample Dataset Button
+
     st.markdown("**No data? Try our sample dataset:**")
-    if st.button("📊 Load Sample Dataset (Restaurant Tips)", type="secondary"):
+    if st.button("Load Sample Dataset (Restaurant Tips)", type="secondary"):
         import seaborn as sns
         sample_df = sns.load_dataset('tips')
         sample_df['tip_percentage'] = (sample_df['tip'] / sample_df['total_bill']) * 100
         sample_df['is_weekend'] = sample_df['day'].isin(['Sat', 'Sun']).astype(int)
         sample_df['party_size_category'] = pd.cut(
-            sample_df['size'], 
-            bins=[0, 2, 4, 10], 
+            sample_df['size'],
+            bins=[0, 2, 4, 10],
             labels=['Small', 'Medium', 'Large']
         )
         st.session_state.uploaded_df = sample_df
         st.session_state.loaded_file_name = "sample_tips.csv"
-        for k in ['cleaned_df', 'overview', 'stats_results', 'insights', 'figures', 'pdf_bytes', 
+        for k in ['cleaned_df', 'overview', 'stats_results', 'insights', 'figures', 'pdf_bytes',
                   'cleaning_log', 'outlier_counts']:
             if k in st.session_state:
                 st.session_state[k] = _defaults.get(k, None)
         overview = preprocessor.get_overview(sample_df)
         st.session_state.overview = overview
         st.rerun()
-    
+
     st.markdown("---")
 
     if uploaded_file is not None or st.session_state.uploaded_df is not None:
@@ -232,13 +214,13 @@ with tabs[0]:
 
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("📋 Total Rows",      f"{overview['rows']:,}")
+                st.metric("Total Rows",      f"{overview['rows']:,}")
             with col2:
-                st.metric("📌 Total Columns",   f"{overview['columns']}")
+                st.metric("Total Columns",   f"{overview['columns']}")
             with col3:
-                st.metric("✅ Complete Rows %", f"{100 - overview['missing_percentage']:.1f}%")
+                st.metric("Complete Rows %", f"{100 - overview['missing_percentage']:.1f}%")
             with col4:
-                st.metric("⚠️ Missing Values",  f"{overview['total_missing']:,}")
+                st.metric("Missing Values",  f"{overview['total_missing']:,}")
 
             st.markdown("---")
             st.markdown("### Data Preview")
@@ -272,13 +254,13 @@ with tabs[0]:
         except Exception as e:
             st.error(f"Error loading file: {str(e)}")
     else:
-        st.info("👆 Upload a CSV file or click 'Load Sample Dataset' to get started!")
+        st.info("Upload a CSV file or click 'Load Sample Dataset' to get started!")
 
 # ══════════════════════════════════════════════════════════════════
 # TAB 2 — Preprocessing
 # ══════════════════════════════════════════════════════════════════
 with tabs[1]:
-    st.markdown("### ⚙️ Data Preprocessing")
+    st.markdown("### Data Preprocessing")
 
     if st.session_state.uploaded_df is not None:
         df   = st.session_state.uploaded_df
@@ -290,7 +272,7 @@ with tabs[1]:
             st.metric("Duplicate Rows",  f"{df.duplicated().sum():,}")
             st.metric("Total Rows",      f"{len(df):,}")
 
-        if st.button("🚀 Run Preprocessing", key="preprocess_btn"):
+        if st.button("Run Preprocessing", key="preprocess_btn"):
             with st.spinner("Preprocessing data..."):
                 cleaned_df, cleaning_log = preprocessor.clean(df)
                 if handle_outliers:
@@ -334,7 +316,7 @@ with tabs[1]:
             )
             if not outlier_data.empty:
                 fig, ax = plt.subplots(figsize=(10, 4))
-                ax.barh(outlier_data['Column'], outlier_data['Outliers'], color='#0A2342')
+                ax.barh(outlier_data['Column'], outlier_data['Outliers'], color='#34D399')
                 ax.set_xlabel('Number of Outliers')
                 st.pyplot(fig)
                 plt.close(fig)
@@ -342,7 +324,7 @@ with tabs[1]:
         if st.session_state.cleaned_df is not None:
             st.markdown("---")
             st.download_button(
-                label="📥 Download Cleaned CSV",
+                label="Download Cleaned CSV",
                 data=st.session_state.cleaned_df.to_csv(index=False),
                 file_name="cleaned_data.csv",
                 mime="text/csv"
@@ -354,13 +336,13 @@ with tabs[1]:
 # TAB 3 — Statistical Tests
 # ══════════════════════════════════════════════════════════════════
 with tabs[2]:
-    st.markdown("### 🧪 Comprehensive Statistical Testing")
+    st.markdown("### Comprehensive Statistical Testing")
     st.markdown("*Scale-aware tests · Effect sizes · FDR correction · OLS regression*")
 
     if st.session_state.cleaned_df is not None:
         df = st.session_state.cleaned_df
 
-        if st.button("🔬 Run Statistical Tests", key="run_stats_btn"):
+        if st.button("Run Statistical Tests", key="run_stats_btn"):
             with st.spinner("Running statistical tests..."):
                 stats_results = analyzer.run_all(df)
                 st.session_state.stats_results = stats_results
@@ -370,7 +352,7 @@ with tabs[2]:
         if st.session_state.stats_results is not None:
             sr = st.session_state.stats_results
 
-            with st.expander("📊 Normality Tests", expanded=True):
+            with st.expander("Normality Tests", expanded=True):
                 norm = sr.get('normality', pd.DataFrame())
                 if not norm.empty:
                     styled = norm.style.map(_green, subset=['Normal'])
@@ -379,7 +361,7 @@ with tabs[2]:
                     st.dataframe(styled, use_container_width=True)
                     st.caption("Test chosen automatically by sample size: Shapiro-Wilk (n≤50) · D'Agostino-Pearson (n≤5000) · Anderson-Darling (n>5000)")
 
-            with st.expander("🔗 Correlation Analysis", expanded=True):
+            with st.expander("Correlation Analysis", expanded=True):
                 corr_col = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
 
                 col1, col2 = st.columns(2)
@@ -401,7 +383,7 @@ with tabs[2]:
 
             chi = sr.get('chi_square', pd.DataFrame())
             if not chi.empty:
-                with st.expander("📐 Chi-Square Tests + Cramér's V", expanded=False):
+                with st.expander("Chi-Square Tests + Cramér's V", expanded=False):
                     sig_c = _sig_col(chi)
                     styled = chi.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in chi.columns:
@@ -410,7 +392,7 @@ with tabs[2]:
 
             anova = sr.get('anova', pd.DataFrame())
             if not anova.empty:
-                with st.expander("📏 ANOVA Tests + Eta-Squared (η²)", expanded=False):
+                with st.expander("ANOVA Tests + Eta-Squared (η²)", expanded=False):
                     sig_c  = _sig_col(anova)
                     styled = anova.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in anova.columns:
@@ -419,7 +401,7 @@ with tabs[2]:
 
             mw = sr.get('mann_whitney', pd.DataFrame())
             if not mw.empty:
-                with st.expander("📉 Mann-Whitney U + Rank-Biserial r", expanded=False):
+                with st.expander("Mann-Whitney U + Rank-Biserial r", expanded=False):
                     sig_c  = _sig_col(mw)
                     styled = mw.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in mw.columns:
@@ -428,7 +410,7 @@ with tabs[2]:
 
             lev = sr.get('levene', pd.DataFrame())
             if not lev.empty:
-                with st.expander("⚖️ Levene's Test (Variance Equality)", expanded=False):
+                with st.expander("Levene's Test (Variance Equality)", expanded=False):
                     st.dataframe(
                         lev.style.map(_green, subset=['Equal Variance']),
                         use_container_width=True
@@ -436,7 +418,7 @@ with tabs[2]:
 
             vif = sr.get('vif', pd.DataFrame())
             if not vif.empty:
-                with st.expander("🏗️ Multicollinearity — VIF + Condition Number (κ)", expanded=False):
+                with st.expander("Multicollinearity — VIF + Condition Number (κ)", expanded=False):
                     styled = vif.style.map(_color_vif, subset=['VIF'])
                     if 'κ Risk' in vif.columns:
                         styled = styled.map(
@@ -459,7 +441,7 @@ with tabs[2]:
             reg_df    = sr.get('regression', pd.DataFrame())
             ols_stats = sr.get('ols_model_stats', {})
             if not reg_df.empty and ols_stats:
-                with st.expander(f"📈 OLS Regression — predicting '{ols_stats.get('Target', '')}'", expanded=True):
+                with st.expander(f"OLS Regression — predicting '{ols_stats.get('Target', '')}'", expanded=True):
                     m = ols_stats
                     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
                     mc1.metric("R²",           f"{m.get('R²', 0):.4f}")
@@ -480,12 +462,12 @@ with tabs[2]:
 # TAB 4 — Visualizations
 # ══════════════════════════════════════════════════════════════════
 with tabs[3]:
-    st.markdown("### 📈 Interactive Visualizations")
+    st.markdown("### Interactive Visualizations")
 
     if st.session_state.cleaned_df is not None:
         df = st.session_state.cleaned_df
 
-        with st.expander("📊 Distribution Analysis", expanded=True):
+        with st.expander("Distribution Analysis", expanded=True):
             st.markdown("**Histograms with KDE Overlay**")
             fig = visualizer.histograms(df)
             if fig:
@@ -496,7 +478,7 @@ with tabs[3]:
             if fig:
                 st.pyplot(fig); plt.close(fig)
 
-        with st.expander("🔗 Correlation Visualizations", expanded=False):
+        with st.expander("Correlation Visualizations", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**Pearson Heatmap**")
@@ -514,7 +496,7 @@ with tabs[3]:
             if fig:
                 st.pyplot(fig); plt.close(fig)
 
-        with st.expander("📐 Normality Assessment", expanded=False):
+        with st.expander("Normality Assessment", expanded=False):
             st.markdown("**Q-Q Plots**")
             fig = visualizer.qq_plots(df)
             if fig:
@@ -522,7 +504,7 @@ with tabs[3]:
 
         sr = st.session_state.stats_results
         if sr and not sr.get('vif', pd.DataFrame()).empty:
-            with st.expander("🏗️ Multicollinearity Analysis", expanded=False):
+            with st.expander("Multicollinearity Analysis", expanded=False):
                 fig = visualizer.vif_chart(sr['vif'])
                 if fig:
                     st.pyplot(fig); plt.close(fig)
@@ -533,14 +515,14 @@ with tabs[3]:
 # TAB 5 — AI Insights
 # ══════════════════════════════════════════════════════════════════
 with tabs[4]:
-    st.markdown("### 💡 What Your Data Is Telling You")
+    st.markdown("### What Your Data Is Telling You")
 
     if st.session_state.cleaned_df is not None and st.session_state.stats_results is not None:
-        df           = st.session_state.cleaned_df
+        df            = st.session_state.cleaned_df
         stats_results = st.session_state.stats_results
-        overview     = st.session_state.overview
+        overview      = st.session_state.overview
 
-        if st.button("🤖 Generate AI Insights", key="insights_btn"):
+        if st.button("Generate AI Insights", key="insights_btn"):
             with st.spinner("Generating insights..."):
                 vif_df   = stats_results.get('vif', pd.DataFrame())
                 insights = insights_gen.generate(df, stats_results, vif_df, overview)
@@ -553,7 +535,7 @@ with tabs[4]:
             with col1:
                 st.markdown(f"""
                 <div style="background:white;padding:20px;border-radius:12px;border:2px solid #1E8449;height:100%;">
-                    <h4 style="color:#1E8449;">✅ Data Quality</h4>
+                    <h4 style="color:#1E8449;">Data Quality</h4>
                     <p><strong>Quality Score:</strong> {overview['quality_score']:.0f}/100</p>
                     <p><strong>Completeness:</strong> {100 - overview['missing_percentage']:.1f}%</p>
                 </div>
@@ -563,7 +545,7 @@ with tabs[4]:
                 highlights = '<br>'.join([f"• {h}" for h in insights.get('highlights', [])[:3]])
                 st.markdown(f"""
                 <div style="background:white;padding:20px;border-radius:12px;border:2px solid #F0A500;height:100%;">
-                    <h4 style="color:#F0A500;">🔍 Key Findings</h4>
+                    <h4 style="color:#F0A500;">Key Findings</h4>
                     <p>{highlights or 'No significant findings'}</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -572,14 +554,14 @@ with tabs[4]:
                 warnings = '<br>'.join([f"• {w}" for w in insights.get('warnings', [])[:3]])
                 st.markdown(f"""
                 <div style="background:white;padding:20px;border-radius:12px;border:2px solid #C0392B;height:100%;">
-                    <h4 style="color:#C0392B;">⚠️ Warnings</h4>
+                    <h4 style="color:#C0392B;">Warnings</h4>
                     <p>{warnings or 'No warnings detected'}</p>
                 </div>
                 """, unsafe_allow_html=True)
 
             if insights.get('summary'):
                 st.markdown("---")
-                st.markdown("#### 📋 Summary Notes")
+                st.markdown("#### Summary Notes")
                 for s in insights['summary']:
                     st.markdown(f"- {s}")
 
@@ -605,7 +587,7 @@ with tabs[4]:
                 st.markdown(f"""
                 <div style="background:linear-gradient(135deg,#0A2342,#1B4F72);color:white;
                     padding:20px;border-radius:12px;margin-top:20px;">
-                    <h4 style="color:#F0A500;">💡 Recommendation</h4>
+                    <h4 style="color:#F0A500;">Recommendation</h4>
                     <p>{insights['recommendation']}</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -616,29 +598,29 @@ with tabs[4]:
 # TAB 6 — PDF Report
 # ══════════════════════════════════════════════════════════════════
 with tabs[5]:
-    st.markdown("### 📄 Generate Professional PDF Report")
+    st.markdown("### Generate Professional PDF Report")
 
     if st.session_state.cleaned_df is not None and st.session_state.stats_results is not None:
         st.markdown("""
         <div style="background:white;padding:24px;border-radius:12px;
             border-left:4px solid #F0A500;margin-bottom:20px;">
             <h4 style="color:#0A2342;">Your Report Will Include:</h4>
-            <p>✓ Executive Summary with Key Metrics</p>
-            <p>✓ Complete Data Overview</p>
-            <p>✓ Statistical Tests — with effect sizes & FDR correction</p>
-            <p>✓ OLS Regression Summary</p>
-            <p>✓ All Visualizations</p>
-            <p>✓ AI-Powered Insights & Recommendations</p>
+            <p>Executive Summary with Key Metrics</p>
+            <p>Complete Data Overview</p>
+            <p>Statistical Tests — with effect sizes & FDR correction</p>
+            <p>OLS Regression Summary</p>
+            <p>All Visualizations</p>
+            <p>AI-Powered Insights & Recommendations</p>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🚀 Generate My PDF Report", key="pdf_btn"):
+        if st.button("Generate My PDF Report", key="pdf_btn"):
             progress_bar = st.progress(0)
             status_text  = st.empty()
             try:
-                status_text.markdown("📊 **Compiling statistics...**");  progress_bar.progress(20)
+                status_text.markdown("**Compiling statistics...**");  progress_bar.progress(20)
                 time.sleep(0.3)
-                status_text.markdown("🎨 **Rendering visualizations...**"); progress_bar.progress(45)
+                status_text.markdown("**Rendering visualizations...**"); progress_bar.progress(45)
 
                 figures = []
                 for fn in [
@@ -654,9 +636,9 @@ with tabs[5]:
                         pass
 
                 time.sleep(0.3)
-                status_text.markdown("📝 **Writing insights...**");  progress_bar.progress(70)
+                status_text.markdown("**Writing insights...**");  progress_bar.progress(70)
                 time.sleep(0.3)
-                status_text.markdown("📄 **Building PDF...**");      progress_bar.progress(85)
+                status_text.markdown("**Building PDF...**");      progress_bar.progress(85)
 
                 pdf_buffer = pdf_gen.generate(
                     df=st.session_state.uploaded_df,
@@ -668,7 +650,7 @@ with tabs[5]:
                 )
                 st.session_state.pdf_bytes = pdf_buffer.getvalue()
                 progress_bar.progress(100)
-                status_text.markdown("✅ **Report generated successfully!**")
+                status_text.markdown("**Report generated successfully!**")
 
                 for fig in figures:
                     plt.close(fig)
@@ -678,12 +660,12 @@ with tabs[5]:
 
         if st.session_state.pdf_bytes is not None:
             st.markdown("---")
-            st.success("🎉 Your report is ready!")
-            
+            st.success("Your report is ready!")
+
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 st.download_button(
-                    label="📥 Download PDF Report",
+                    label="Download PDF Report",
                     data=st.session_state.pdf_bytes,
                     file_name=f"statspro_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                     mime="application/pdf",
@@ -700,9 +682,9 @@ with tabs[5]:
                                     sheet_name = name[:31]
                                     result_df.to_excel(writer, index=False, sheet_name=sheet_name)
                     excel_buffer.seek(0)
-                    
+
                     st.download_button(
-                        label="📥 Download Excel Report",
+                        label="Download Excel Report",
                         data=excel_buffer,
                         file_name=f"statspro_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -715,6 +697,6 @@ with tabs[5]:
 st.markdown("---")
 st.markdown("""
 <div style="text-align:center;padding:20px;color:#6C757D;font-size:14px;">
-    <p>Built with ❤️ using Streamlit | StatsPro v2.0 | © 2025</p>
+    <p>Built with Streamlit | StatsPro v2.0 | 2025</p>
 </div>
 """, unsafe_allow_html=True)
