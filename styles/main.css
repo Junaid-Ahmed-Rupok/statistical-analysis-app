@@ -75,7 +75,6 @@ h1, h2, h3, h4, h5, h6 {
     border-right: 1px solid var(--border-subtle) !important;
 }
 
-/* Kill the inline gradient on the sidebar inner div */
 [data-testid="stSidebar"] > div,
 [data-testid="stSidebar"] > div > div,
 [data-testid="stSidebar"] section {
@@ -83,7 +82,6 @@ h1, h2, h3, h4, h5, h6 {
     background-image: none !important;
 }
 
-/* All sidebar text */
 [data-testid="stSidebar"] * {
     color: var(--text-secondary) !important;
 }
@@ -96,7 +94,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-primary) !important;
 }
 
-/* ── Sidebar: kill the inline-style logo div ────── */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align:center"],
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align: center"] {
     background: transparent !important;
@@ -115,7 +112,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 11px !important;
 }
 
-/* ── Sidebar: How It Works steps (inline divs) ── */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="background:rgba"],
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="background: rgba"] {
     background: var(--bg-surface) !important;
@@ -142,7 +138,6 @@ h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-mono) !important;
 }
 
-/* ── Sidebar: bottom trust badges ───────────────── */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align:center"] div,
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align: center"] div {
     color: var(--text-muted) !important;
@@ -151,7 +146,6 @@ h1, h2, h3, h4, h5, h6 {
     background: transparent !important;
 }
 
-/* Sidebar labels */
 [data-testid="stSidebar"] label {
     color: var(--em) !important;
     font-family: var(--font-mono) !important;
@@ -165,7 +159,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── HERO BANNER ────────────────────────────────── */
-/* Target the outer gradient div */
 [data-testid="stMarkdownContainer"] > div[style*="linear-gradient"],
 [data-testid="stMarkdownContainer"] > div[style*="background:linear"],
 [data-testid="stMarkdownContainer"] > div[style*="background: linear"] {
@@ -176,7 +169,6 @@ h1, h2, h3, h4, h5, h6 {
     padding: 40px 36px !important;
 }
 
-/* Hero h1 */
 [data-testid="stMarkdownContainer"] > div[style*="linear-gradient"] h1,
 [data-testid="stMarkdownContainer"] > div[style*="background:linear"] h1,
 [data-testid="stMarkdownContainer"] > div[style*="background: linear"] h1 {
@@ -185,7 +177,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 32px !important;
 }
 
-/* Hero subtitle p */
 [data-testid="stMarkdownContainer"] > div[style*="linear-gradient"] p,
 [data-testid="stMarkdownContainer"] > div[style*="background:linear"] p,
 [data-testid="stMarkdownContainer"] > div[style*="background: linear"] p {
@@ -193,7 +184,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 14px !important;
 }
 
-/* Hero pill spans */
 [data-testid="stMarkdownContainer"] > div[style*="linear-gradient"] span,
 [data-testid="stMarkdownContainer"] > div[style*="background:linear"] span,
 [data-testid="stMarkdownContainer"] > div[style*="background: linear"] span {
@@ -209,7 +199,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── INLINE CARDS (white bg in Python) ──────────── */
-/* Data quality score card, preprocessing log, condition number, etc. */
 [data-testid="stMarkdownContainer"] div[style*="background:white"],
 [data-testid="stMarkdownContainer"] div[style*="background: white"],
 [data-testid="stMarkdownContainer"] div[style*="background:#fff"],
@@ -231,7 +220,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-secondary) !important;
 }
 
-/* Quality score number */
 [data-testid="stMarkdownContainer"] div[style*="background:white"] div[style*="font-size:48px"],
 [data-testid="stMarkdownContainer"] div[style*="background: white"] div[style*="font-size:48px"],
 [data-testid="stMarkdownContainer"] div[style*="background: white"] div[style*="font-size: 48px"] {
@@ -239,7 +227,6 @@ h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-mono) !important;
 }
 
-/* Preprocessing log items (border-left green) */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #1E8449"],
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #1E8449"] {
     background: var(--ok-bg) !important;
@@ -253,7 +240,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--ok) !important;
 }
 
-/* Condition number card (border-left dynamic color) */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #C0392B"],
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #C0392B"] {
     background: var(--danger-bg) !important;
@@ -363,21 +349,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Dataframe table cells with inline bg colors ── */
-/* Green cells */
 td[style*="background-color: #D5F5E3"],
 td[style*="background-color:#D5F5E3"] {
     background-color: var(--ok-bg) !important;
     color: var(--ok) !important;
 }
 
-/* Yellow/warning cells */
 td[style*="background-color: #FFF3CD"],
 td[style*="background-color:#FFF3CD"] {
     background-color: var(--warn-bg) !important;
     color: var(--warn) !important;
 }
 
-/* Red cells */
 td[style*="background-color: #FADBD8"],
 td[style*="background-color:#FADBD8"] {
     background-color: var(--danger-bg) !important;
@@ -498,7 +481,6 @@ td[style*="background-color:#FADBD8"] {
     background: var(--bg-surface) !important;
 }
 
-/* Fix doubled upload button — hide the inner text label overlap */
 [data-testid="stFileUploader"] label > div {
     display: flex !important;
     align-items: center !important;
@@ -518,7 +500,6 @@ td[style*="background-color:#FADBD8"] {
     font-size: 11px !important;
 }
 
-/* The Upload button inside the uploader */
 [data-testid="stFileUploader"] button {
     background: var(--bg-surface) !important;
     color: var(--em) !important;
@@ -528,6 +509,16 @@ td[style*="background-color:#FADBD8"] {
     font-size: 12px !important;
     padding: 6px 16px !important;
     box-shadow: none !important;
+}
+
+/* ── Fix duplicate upload button ────────────────── */
+[data-testid="stFileUploader"] button::after,
+[data-testid="stFileUploader"] button::before {
+    display: none !important;
+}
+
+[data-testid="stFileUploader"] label > div > div:first-child {
+    display: none !important;
 }
 
 /* ── EXPANDER (Analysis Settings + stats) ───────── */
