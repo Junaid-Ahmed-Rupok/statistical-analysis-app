@@ -55,7 +55,6 @@ _defaults = {
     'uploaded_df': None, 'cleaned_df': None, 'overview': None,
     'stats_results': None, 'insights': None, 'figures': [],
     'pdf_bytes': None, 'cleaning_log': [], 'outlier_counts': {},
-    # track which file is loaded so we can bust stale state
     'loaded_file_name': None,
 }
 for k, v in _defaults.items():
@@ -63,8 +62,7 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ------------------------------------------------------------------
-# FIX: Don't cache class instances — they carry mutable state and
-# will return stale results when a second file is uploaded.
+# Classes
 # ------------------------------------------------------------------
 preprocessor  = DataPreprocessor()
 analyzer      = StatisticalAnalyzer()
@@ -107,11 +105,9 @@ def _color_fdr(val):
            'background-color: #FADBD8; color: #C0392B' if val is False else ''
 
 def _sig_col(df):
-    """Return FDR-corrected significance column when available."""
     return 'Sig. after FDR' if 'Sig. after FDR' in df.columns else 'Significant'
 
 def _corr_col(df):
-    """Return the correlation value column — v2 renamed it."""
     return 'Correlation (r)' if 'Correlation (r)' in df.columns else 'Correlation'
 
 # ------------------------------------------------------------------
@@ -195,7 +191,6 @@ with tabs[0]:
     )
 
     if uploaded_file is not None:
-        # Bust stale state when a new file is uploaded
         if uploaded_file.name != st.session_state.loaded_file_name:
             for k, v in _defaults.items():
                 st.session_state[k] = v
@@ -225,7 +220,7 @@ with tabs[0]:
             st.markdown("### Missing Values Analysis")
             if not overview['missing_table'].empty:
                 st.dataframe(
-                    overview['missing_table'].style.applymap(
+                    overview['missing_table'].style.map(
                         _color_missing, subset=['Missing Percentage']
                     ),
                     use_container_width=True
@@ -278,7 +273,6 @@ with tabs[1]:
                 st.session_state.cleaned_df    = cleaned_df
                 st.session_state.cleaning_log  = cleaning_log
                 st.session_state.outlier_counts = outlier_counts
-                # Reset downstream results so old data doesn't persist
                 st.session_state.stats_results = None
                 st.session_state.insights      = None
                 st.session_state.pdf_bytes     = None
@@ -349,18 +343,15 @@ with tabs[2]:
         if st.session_state.stats_results is not None:
             sr = st.session_state.stats_results
 
-            # ── Normality ──────────────────────────────────────────
             with st.expander("📊 Normality Tests", expanded=True):
                 norm = sr.get('normality', pd.DataFrame())
                 if not norm.empty:
-                    bool_cols = [c for c in ['Normal', 'Sig. after FDR'] if c in norm.columns]
-                    styled = norm.style.applymap(_green, subset=['Normal'])
+                    styled = norm.style.map(_green, subset=['Normal'])
                     if 'Sig. after FDR' in norm.columns:
-                        styled = styled.applymap(_color_fdr, subset=['Sig. after FDR'])
+                        styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                     st.dataframe(styled, use_container_width=True)
                     st.caption("Test chosen automatically by sample size: Shapiro-Wilk (n≤50) · D'Agostino-Pearson (n≤5000) · Anderson-Darling (n>5000)")
 
-            # ── Correlation ────────────────────────────────────────
             with st.expander("🔗 Correlation Analysis", expanded=True):
                 corr_col = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
 
@@ -374,74 +365,54 @@ with tabs[2]:
                         cdf = sr.get(key, pd.DataFrame())
                         if not cdf.empty and corr_col in cdf.columns:
                             top = cdf.nlargest(10, corr_col)
-                            style_cols = {}
-                            if 'Effect Size' in top.columns:
-                                style_cols['Effect Size'] = _color_effect
-                            if 'Sig. after FDR' in top.columns:
-                                style_cols['Sig. after FDR'] = _color_fdr
                             styled = top.style
-                            for sc, fn in style_cols.items():
-                                styled = styled.applymap(fn, subset=[sc])
+                            if 'Effect Size' in top.columns:
+                                styled = styled.map(_color_effect, subset=['Effect Size'])
+                            if 'Sig. after FDR' in top.columns:
+                                styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                             st.dataframe(styled, use_container_width=True)
 
-                if 'pearson_correlation' in sr and not sr['pearson_correlation'].empty:
-                    cdf = sr['pearson_correlation']
-                    if 'CI 95% Low' in cdf.columns:
-                        st.caption("Confidence intervals computed via Fisher z-transform. "
-                                   "'Sig. after FDR' uses Benjamini-Hochberg correction.")
-
-            # ── Chi-Square ─────────────────────────────────────────
             chi = sr.get('chi_square', pd.DataFrame())
             if not chi.empty:
                 with st.expander("📐 Chi-Square Tests + Cramér's V", expanded=False):
                     sig_c = _sig_col(chi)
-                    styled = chi.style.applymap(_green, subset=[sig_c])
+                    styled = chi.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in chi.columns:
-                        styled = styled.applymap(_color_effect, subset=['Effect Size'])
+                        styled = styled.map(_color_effect, subset=['Effect Size'])
                     st.dataframe(styled, use_container_width=True)
-                    st.caption("Effect size: Cramér's V (bias-corrected). Thresholds adjusted for table dimensions.")
 
-            # ── ANOVA ──────────────────────────────────────────────
             anova = sr.get('anova', pd.DataFrame())
             if not anova.empty:
                 with st.expander("📏 ANOVA Tests + Eta-Squared (η²)", expanded=False):
                     sig_c  = _sig_col(anova)
-                    styled = anova.style.applymap(_green, subset=[sig_c])
+                    styled = anova.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in anova.columns:
-                        styled = styled.applymap(_color_effect, subset=['Effect Size'])
-                    if 'Eta-Squared (η²)' in anova.columns:
-                        styled = styled.background_gradient(
-                            subset=['Eta-Squared (η²)'], cmap='YlGn'
-                        )
+                        styled = styled.map(_color_effect, subset=['Effect Size'])
                     st.dataframe(styled, use_container_width=True)
-                    st.caption("η² < 0.01 negligible · 0.01 small · 0.06 medium · 0.14+ large")
 
-            # ── Mann-Whitney ───────────────────────────────────────
             mw = sr.get('mann_whitney', pd.DataFrame())
             if not mw.empty:
                 with st.expander("📉 Mann-Whitney U + Rank-Biserial r", expanded=False):
                     sig_c  = _sig_col(mw)
-                    styled = mw.style.applymap(_green, subset=[sig_c])
+                    styled = mw.style.map(_green, subset=[sig_c])
                     if 'Effect Size' in mw.columns:
-                        styled = styled.applymap(_color_effect, subset=['Effect Size'])
+                        styled = styled.map(_color_effect, subset=['Effect Size'])
                     st.dataframe(styled, use_container_width=True)
 
-            # ── Levene ────────────────────────────────────────────
             lev = sr.get('levene', pd.DataFrame())
             if not lev.empty:
                 with st.expander("⚖️ Levene's Test (Variance Equality)", expanded=False):
                     st.dataframe(
-                        lev.style.applymap(_green, subset=['Equal Variance']),
+                        lev.style.map(_green, subset=['Equal Variance']),
                         use_container_width=True
                     )
 
-            # ── VIF + Condition Number ─────────────────────────────
             vif = sr.get('vif', pd.DataFrame())
             if not vif.empty:
                 with st.expander("🏗️ Multicollinearity — VIF + Condition Number (κ)", expanded=False):
-                    styled = vif.style.applymap(_color_vif, subset=['VIF'])
+                    styled = vif.style.map(_color_vif, subset=['VIF'])
                     if 'κ Risk' in vif.columns:
-                        styled = styled.applymap(
+                        styled = styled.map(
                             lambda v: ('color:#C0392B;font-weight:700' if v == 'High' else
                                        'color:#F0A500' if v == 'Moderate' else 'color:#1E8449'),
                             subset=['κ Risk']
@@ -455,21 +426,13 @@ with tabs[2]:
                         <div style="background:white;padding:16px;border-radius:8px;
                             border-left:4px solid {k_color};margin-top:12px;">
                             <strong>Condition Number κ = {kappa:.2f}</strong> — {k_risk} risk
-                            <span style="color:#6C757D;font-size:13px;margin-left:8px;">
-                            (κ &lt; 10 low · 10–30 moderate · &gt; 30 high — indicates near-singular matrix)
-                            </span>
                         </div>
                         """, unsafe_allow_html=True)
 
-            # ── OLS Regression ────────────────────────────────────
             reg_df    = sr.get('regression', pd.DataFrame())
             ols_stats = sr.get('ols_model_stats', {})
             if not reg_df.empty and ols_stats:
-                with st.expander(
-                    f"📈 OLS Regression — predicting '{ols_stats.get('Target', '')}'",
-                    expanded=True
-                ):
-                    # Model-level metrics
+                with st.expander(f"📈 OLS Regression — predicting '{ols_stats.get('Target', '')}'", expanded=True):
                     m = ols_stats
                     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
                     mc1.metric("R²",           f"{m.get('R²', 0):.4f}")
@@ -478,39 +441,16 @@ with tabs[2]:
                     mc4.metric("AIC",          f"{m.get('AIC', 0):.1f}")
                     mc5.metric("BIC",          f"{m.get('BIC', 0):.1f}")
 
-                    f_p = m.get('F P-Value', 1.0)
-                    f_color = '#1E8449' if f_p < 0.05 else '#C0392B'
-                    st.markdown(f"""
-                    <div style="background:white;padding:12px 16px;border-radius:8px;
-                        border-left:4px solid {f_color};margin:12px 0;">
-                        Overall model F p-value: <strong style="color:{f_color};">{f_p:.4f}</strong>
-                        {'— model is statistically significant' if f_p < 0.05 else '— model is not significant'}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    # Coefficient table
-                    st.markdown("**Coefficient Table**")
                     sig_c  = _sig_col(reg_df)
-                    styled = reg_df.style.applymap(_green, subset=[sig_c])
+                    styled = reg_df.style.map(_green, subset=[sig_c])
                     if 'Sig. after FDR' in reg_df.columns:
-                        styled = styled.applymap(_color_fdr, subset=['Sig. after FDR'])
+                        styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                     st.dataframe(styled, use_container_width=True)
-                    st.caption(
-                        "CIs via OLS standard errors. FDR correction applied across predictors "
-                        "(excludes intercept). Target auto-selected as highest-CV numeric column."
-                    )
-
-                    kappa_ols = m.get('Condition Number', 0)
-                    if kappa_ols > 1000:
-                        st.warning(
-                            f"⚠️ Regression condition number = {kappa_ols:.0f} — "
-                            "severe numerical instability. Consider standardising predictors."
-                        )
     else:
         st.info("Please preprocess your data in the 'Preprocessing' tab first.")
 
 # ══════════════════════════════════════════════════════════════════
-# TAB 4 — Visualizations  (unchanged logic, added plt.close())
+# TAB 4 — Visualizations
 # ══════════════════════════════════════════════════════════════════
 with tabs[3]:
     st.markdown("### 📈 Interactive Visualizations")
@@ -610,14 +550,12 @@ with tabs[4]:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Summary bullets
             if insights.get('summary'):
                 st.markdown("---")
                 st.markdown("#### 📋 Summary Notes")
                 for s in insights['summary']:
                     st.markdown(f"- {s}")
 
-            # Readiness gauge
             st.markdown("---")
             readiness = insights.get('readiness_score', 0)
             r_color   = '#1E8449' if readiness >= 70 else '#F0A500' if readiness >= 40 else '#C0392B'
