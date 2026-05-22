@@ -163,7 +163,21 @@ class PDFReportGenerator:
             self.canv.setLineWidth(self.thickness)
             self.canv.line(0, 3, self.width, 3)
 
+    # ── HELPER: convert matplotlib figure to ReportLab Image ──
+    def _fig_to_image(self, fig, width=5.5*inch, height=3.5*inch):
+        """Convert matplotlib figure to ReportLab Image without closing the buffer prematurely."""
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+        buf.seek(0)
+        img = Image(buf, width=width, height=height)
+        # Store buffer reference so it stays alive until the PDF is built
+        if not hasattr(self, '_img_buffers'):
+            self._img_buffers = []
+        self._img_buffers.append(buf)
+        return img
+
     def generate(self, df, overview, stats_results, insights, figures=None, cleaned_df=None):
+        self._img_buffers = []  # Reset for new generation
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer, pagesize=A4,
@@ -185,6 +199,15 @@ class PDFReportGenerator:
             story.append(PageBreak())
         story.extend(self._insights_section(insights))
         doc.build(story, onFirstPage=self._on_first_page, onLaterPages=self._on_later_pages)
+        
+        # Clean up image buffers
+        for buf in self._img_buffers:
+            try:
+                buf.close()
+            except:
+                pass
+        self._img_buffers = []
+        
         buffer.seek(0)
         return buffer
 
@@ -350,8 +373,9 @@ class PDFReportGenerator:
         pearson = stats_results.get('pearson_correlation', pd.DataFrame())
         if not pearson.empty:
             elements.append(Paragraph("Pearson Correlations", self.styles['SubHead']))
-            top_p = pearson.nlargest(8, 'Correlation (r)' if 'Correlation (r)' in pearson.columns else 'Correlation')
-            elements.append(self._build_test_table(top_p, ['Variable 1', 'Variable 2', 'Correlation (r)' if 'Correlation (r)' in pearson.columns else 'Correlation', 'P-Value', 'Effect Size']))
+            corr_col_name = 'Correlation (r)' if 'Correlation (r)' in pearson.columns else 'Correlation'
+            top_p = pearson.nlargest(8, corr_col_name)
+            elements.append(self._build_test_table(top_p, ['Variable 1', 'Variable 2', corr_col_name, 'P-Value', 'Effect Size']))
             elements.append(Spacer(1, 10))
 
         anova = stats_results.get('anova', pd.DataFrame())
@@ -440,14 +464,10 @@ class PDFReportGenerator:
             try:
                 name = chart_names[i] if i < len(chart_names) else f"Chart {i+1}"
                 elements.append(Paragraph(name, self.styles['SubHead']))
-                img_buffer = io.BytesIO()
-                fig.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
-                img_buffer.seek(0)
-                img = Image(img_buffer, width=5.5*inch, height=3.5*inch)
+                img = self._fig_to_image(fig)
                 elements.append(img)
                 elements.append(Paragraph(f"Figure {i+1}: {name}", self.styles['CapText']))
                 elements.append(Spacer(1, 14))
-                img_buffer.close()
             except Exception:
                 elements.append(Paragraph(f"Chart {i+1} could not be rendered", self.styles['CapText']))
         return elements
