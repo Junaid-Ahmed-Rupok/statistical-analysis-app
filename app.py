@@ -127,7 +127,7 @@ with st.sidebar:
         <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📂 <strong>1. Upload your CSV</strong></div>
         <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">⚙️ <strong>2. Auto preprocessing</strong></div>
         <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📊 <strong>3. Full statistical analysis</strong></div>
-        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📄 <strong>4. Download PDF report</strong></div>
+        <div style="background:rgba(255,255,255,0.1);padding:15px;border-radius:8px;margin:8px 0;">📄 <strong>4. Download PDF + Excel</strong></div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
@@ -161,7 +161,7 @@ st.markdown("""
         <span style="background:rgba(240,165,0,0.2);color:#F0A500;padding:8px 20px;border-radius:20px;border:1px solid #F0A500;font-weight:600;font-size:14px;">15+ Visualizations</span>
         <span style="background:rgba(240,165,0,0.2);color:#F0A500;padding:8px 20px;border-radius:20px;border:1px solid #F0A500;font-weight:600;font-size:14px;">Effect Sizes + FDR</span>
         <span style="background:rgba(240,165,0,0.2);color:#F0A500;padding:8px 20px;border-radius:20px;border:1px solid #F0A500;font-weight:600;font-size:14px;">OLS Regression</span>
-        <span style="background:rgba(240,165,0,0.2);color:#F0A500;padding:8px 20px;border-radius:20px;border:1px solid #F0A500;font-weight:600;font-size:14px;">PDF Export</span>
+        <span style="background:rgba(240,165,0,0.2);color:#F0A500;padding:8px 20px;border-radius:20px;border:1px solid #F0A500;font-weight:600;font-size:14px;">PDF + Excel Export</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -183,25 +183,52 @@ tabs = st.tabs([
 # ══════════════════════════════════════════════════════════════════
 with tabs[0]:
     st.markdown("### 📂 Upload Your Dataset")
-
+    
     uploaded_file = st.file_uploader(
         "Drag & drop your CSV file here or click to browse",
         type=["csv"],
         help="Supports CSV files up to 200MB"
     )
+    
+    # Sample Dataset Button
+    st.markdown("**No data? Try our sample dataset:**")
+    if st.button("📊 Load Sample Dataset (Restaurant Tips)", type="secondary"):
+        import seaborn as sns
+        sample_df = sns.load_dataset('tips')
+        sample_df['tip_percentage'] = (sample_df['tip'] / sample_df['total_bill']) * 100
+        sample_df['is_weekend'] = sample_df['day'].isin(['Sat', 'Sun']).astype(int)
+        sample_df['party_size_category'] = pd.cut(
+            sample_df['size'], 
+            bins=[0, 2, 4, 10], 
+            labels=['Small', 'Medium', 'Large']
+        )
+        st.session_state.uploaded_df = sample_df
+        st.session_state.loaded_file_name = "sample_tips.csv"
+        for k in ['cleaned_df', 'overview', 'stats_results', 'insights', 'figures', 'pdf_bytes', 
+                  'cleaning_log', 'outlier_counts']:
+            if k in st.session_state:
+                st.session_state[k] = _defaults.get(k, None)
+        overview = preprocessor.get_overview(sample_df)
+        st.session_state.overview = overview
+        st.rerun()
+    
+    st.markdown("---")
 
-    if uploaded_file is not None:
-        if uploaded_file.name != st.session_state.loaded_file_name:
+    if uploaded_file is not None or st.session_state.uploaded_df is not None:
+        if uploaded_file is not None and uploaded_file.name != st.session_state.loaded_file_name:
             for k, v in _defaults.items():
                 st.session_state[k] = v
             st.session_state.loaded_file_name = uploaded_file.name
 
         try:
-            df = pd.read_csv(uploaded_file)
-            st.session_state.uploaded_df = df
-
-            overview = preprocessor.get_overview(df)
-            st.session_state.overview = overview
+            if uploaded_file is not None:
+                df = pd.read_csv(uploaded_file)
+                st.session_state.uploaded_df = df
+                overview = preprocessor.get_overview(df)
+                st.session_state.overview = overview
+            else:
+                df = st.session_state.uploaded_df
+                overview = st.session_state.overview
 
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -243,9 +270,9 @@ with tabs[0]:
             """, unsafe_allow_html=True)
 
         except Exception as e:
-            st.error(f"Error loading file: {e}")
+            st.error(f"Error loading file: {str(e)}")
     else:
-        st.info("👆 Upload a CSV file to get started.")
+        st.info("👆 Upload a CSV file or click 'Load Sample Dataset' to get started!")
 
 # ══════════════════════════════════════════════════════════════════
 # TAB 2 — Preprocessing
@@ -652,13 +679,35 @@ with tabs[5]:
         if st.session_state.pdf_bytes is not None:
             st.markdown("---")
             st.success("🎉 Your report is ready!")
-            st.download_button(
-                label="📥 Download PDF Report",
-                data=st.session_state.pdf_bytes,
-                file_name=f"statspro_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                mime="application/pdf",
-                key="download_pdf"
-            )
+            
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
+                st.download_button(
+                    label="📥 Download PDF Report",
+                    data=st.session_state.pdf_bytes,
+                    file_name=f"statspro_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="download_pdf"
+                )
+            with col_dl2:
+                if st.session_state.cleaned_df is not None:
+                    excel_buffer = io.BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        st.session_state.cleaned_df.to_excel(writer, index=False, sheet_name='Cleaned Data')
+                        if st.session_state.stats_results:
+                            for name, result_df in st.session_state.stats_results.items():
+                                if isinstance(result_df, pd.DataFrame) and not result_df.empty:
+                                    sheet_name = name[:31]
+                                    result_df.to_excel(writer, index=False, sheet_name=sheet_name)
+                    excel_buffer.seek(0)
+                    
+                    st.download_button(
+                        label="📥 Download Excel Report",
+                        data=excel_buffer,
+                        file_name=f"statspro_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_excel"
+                    )
     else:
         st.info("Please complete all previous steps to generate the PDF report.")
 
