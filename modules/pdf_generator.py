@@ -242,7 +242,7 @@ class PDFReportGenerator:
         ]))
         elements.append(table)
         elements.append(Spacer(1, 1*inch))
-        elements.append(Paragraph("© 2025 StatsPro | Confidential | All Rights Reserved", self.styles['CapText']))
+        elements.append(Paragraph("(c) 2025 StatsPro | Confidential | All Rights Reserved", self.styles['CapText']))
         return elements
 
     def _executive_summary(self, overview, insights):
@@ -375,16 +375,16 @@ class PDFReportGenerator:
         anova = stats_results.get('anova', pd.DataFrame())
         if not anova.empty:
             elements.append(Paragraph("ANOVA Results", self.styles['SubHead']))
-            elements.append(self._build_test_table(anova.head(10), ['Numeric Variable', 'Grouping Variable', 'F-Statistic', 'P-Value', 'Eta-Squared (η²)']))
+            elements.append(self._build_test_table(anova.head(10), ['Numeric Variable', 'Grouping Variable', 'F-Statistic', 'P-Value', 'Eta-Squared']))
             elements.append(Spacer(1, 10))
 
         vif = stats_results.get('vif', pd.DataFrame())
         if not vif.empty:
             elements.append(Paragraph("Multicollinearity (VIF)", self.styles['SubHead']))
             elements.append(self._build_test_table(vif, ['Feature', 'VIF', 'VIF Risk']))
-            if 'Condition Number (κ)' in vif.columns:
-                kappa = vif['Condition Number (κ)'].iloc[0]
-                k_risk = vif['κ Risk'].iloc[0]
+            if 'Condition Number' in vif.columns:
+                kappa = vif['Condition Number'].iloc[0]
+                k_risk = vif['Risk'].iloc[0] if 'Risk' in vif.columns else 'N/A'
                 elements.append(Spacer(1, 6))
                 elements.append(Paragraph(f"Condition Number = {kappa:.2f} ({k_risk} risk)", self.styles['CapText']))
             elements.append(Spacer(1, 10))
@@ -394,8 +394,8 @@ class PDFReportGenerator:
             elements.append(Paragraph(f"OLS Regression - Target: {ols_stats.get('Target', '')}", self.styles['SubHead']))
             ols_info = [
                 ['Metric', 'Value'],
-                ['R²', str(ols_stats.get('R²', ''))],
-                ['Adj. R²', str(ols_stats.get('Adj. R²', ''))],
+                ['R-squared', str(ols_stats.get('R-squared', ''))],
+                ['Adj. R-squared', str(ols_stats.get('Adj. R-squared', ''))],
                 ['F-Statistic', str(ols_stats.get('F-Statistic', ''))],
                 ['AIC', str(ols_stats.get('AIC', ''))],
                 ['BIC', str(ols_stats.get('BIC', ''))],
@@ -463,7 +463,7 @@ class PDFReportGenerator:
                 elements.append(Paragraph(f"Figure {i+1}: {name}", self.styles['CapText']))
                 elements.append(Spacer(1, 14))
             except Exception:
-                elements.append(Paragraph(f"Chart {i+1} could not be rendered", self.styles['CapText']))
+                pass
         return elements
 
     def _insights_section(self, insights):
