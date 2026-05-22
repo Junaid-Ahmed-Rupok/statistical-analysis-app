@@ -22,9 +22,9 @@
     --em-glow:       #34D39918;
 
     --text-primary:  #f0f0f0;
-    --text-secondary:#888888;
-    --text-muted:    #444444;
-    --text-ghost:    #2a2a2a;
+    --text-secondary:#aaaaaa;
+    --text-muted:    #777777;
+    --text-ghost:    #444444;
 
     --ok:            #34D399;
     --ok-bg:         #34D39910;
@@ -548,28 +548,48 @@ td[style*="background-color:#FADBD8"] {
 }
 
 /* ── EXPANDER ───────────────────────────────────── */
-.streamlit-expanderHeader {
+.streamlit-expanderHeader,
+[data-testid="stExpander"] summary,
+[data-testid="stExpanderHeader"] {
     background: var(--bg-raised) !important;
     border: 1px solid var(--border-subtle) !important;
     border-left: 2px solid var(--border-mid) !important;
-    border-radius: 0 6px 6px 0 !important;
+    border-radius: 6px !important;
     padding: 12px 16px !important;
     font-family: var(--font-mono) !important;
-    font-size: 12px !important;
+    font-size: 13px !important;
     font-weight: 500 !important;
-    color: var(--text-secondary) !important;
+    color: #ffffff !important;
 }
 
-.streamlit-expanderHeader:hover {
+.streamlit-expanderHeader *,
+[data-testid="stExpander"] summary * {
+    color: #ffffff !important;
+    font-family: var(--font-mono) !important;
+}
+
+.streamlit-expanderHeader:hover,
+[data-testid="stExpander"] summary:hover {
     background: var(--bg-hover) !important;
     border-left-color: var(--em) !important;
     color: var(--em) !important;
 }
 
-[data-testid="stExpander"][aria-expanded="true"] .streamlit-expanderHeader {
+.streamlit-expanderHeader:hover *,
+[data-testid="stExpander"] summary:hover * {
+    color: var(--em) !important;
+}
+
+[data-testid="stExpander"][aria-expanded="true"] .streamlit-expanderHeader,
+[data-testid="stExpander"][open] summary {
     border-left-color: var(--em) !important;
     color: var(--em) !important;
     background: var(--bg-active) !important;
+}
+
+[data-testid="stExpander"][aria-expanded="true"] .streamlit-expanderHeader *,
+[data-testid="stExpander"][open] summary * {
+    color: var(--em) !important;
 }
 
 .streamlit-expanderContent {
