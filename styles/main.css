@@ -476,18 +476,29 @@ td[style*="background-color:#FADBD8"] {
 }
 
 /* ── FIX: Upload button text doubling ───────────── */
-/* Streamlit renders an internal span AND the button label — hide the internal one */
-[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] {
+/* Streamlit injects TWO text nodes inside the button — kill all, re-inject one */
+[data-testid="stFileUploader"] button,
+[data-testid="stFileUploader"] [data-testid="baseButton-secondary"],
+[data-testid="stFileUploader"] [kind="secondary"] {
     position: relative !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    min-width: 90px !important;
+    height: 36px !important;
+    padding: 0 16px !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    color: transparent !important;
     overflow: hidden !important;
-    font-size: 0 !important;          /* hide ALL text inside */
-    min-width: 80px !important;
-    padding: 7px 16px !important;
 }
 
+[data-testid="stFileUploader"] button::after,
 [data-testid="stFileUploader"] [data-testid="baseButton-secondary"]::after {
-    content: "Upload" !important;     /* inject clean single label */
+    content: "Upload" !important;
     font-size: 12px !important;
+    line-height: 1 !important;
     font-family: var(--font-mono) !important;
     font-weight: 600 !important;
     color: var(--em) !important;
@@ -496,26 +507,44 @@ td[style*="background-color:#FADBD8"] {
     top: 50% !important;
     transform: translate(-50%, -50%) !important;
     white-space: nowrap !important;
+    pointer-events: none !important;
 }
 
-[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] p,
-[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] span,
-[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] div {
-    display: none !important;
+/* Hide every child node inside the upload button */
+[data-testid="stFileUploader"] button *,
+[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] * {
+    visibility: hidden !important;
+    font-size: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    display: inline !important;
 }
 
-[data-testid="stFileUploader"] [data-testid="baseButton-secondary"] {
-    background: var(--bg-surface) !important;
-    border: 1px solid var(--border-strong) !important;
-    border-radius: 6px !important;
-    box-shadow: none !important;
-}
-
-[data-testid="stFileUploader"] small,
-[data-testid="stFileUploader"] span {
+[data-testid="stFileUploader"] small {
     color: var(--text-muted) !important;
     font-family: var(--font-mono) !important;
     font-size: 11px !important;
+    visibility: visible !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+/* ── FIX: Expander "arrow_right" raw text ────────── */
+/* Streamlit renders icon name as raw text node inside expander header */
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] details > summary,
+.streamlit-expanderHeader {
+    overflow: hidden !important;
+}
+
+/* Hide the raw icon text (e.g. "_arrow_right") that appears before the label */
+[data-testid="stExpander"] summary > span:first-child,
+[data-testid="stExpander"] summary > div > span:first-child {
+    display: none !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    font-size: 0 !important;
 }
 
 /* ── EXPANDER ───────────────────────────────────── */
