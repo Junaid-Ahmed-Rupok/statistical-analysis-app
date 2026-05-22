@@ -185,13 +185,16 @@ class Visualizer:
                 ax.set_title(col, fontweight='bold', color=COLORS[0])
                 continue
             
-            stats.probplot(data, dist="norm", plot=ax)
-            
-            ax.get_lines()[0].set_markerfacecolor(COLORS[0])
-            ax.get_lines()[0].set_markeredgecolor(COLORS[0])
-            ax.get_lines()[0].set_alpha(0.6)
-            ax.get_lines()[1].set_color(COLORS[1])
-            ax.get_lines()[1].set_linewidth(2)
+            try:
+                stats.probplot(data, dist="norm", plot=ax)
+                ax.get_lines()[0].set_markerfacecolor(COLORS[0])
+                ax.get_lines()[0].set_markeredgecolor(COLORS[0])
+                ax.get_lines()[0].set_alpha(0.6)
+                ax.get_lines()[1].set_color(COLORS[1])
+                ax.get_lines()[1].set_linewidth(2)
+            except Exception:
+                ax.text(0.5, 0.5, 'Error plotting', ha='center', va='center',
+                       transform=ax.transAxes, color='#999')
             
             ax.set_title(col, fontweight='bold', color=COLORS[0])
         
