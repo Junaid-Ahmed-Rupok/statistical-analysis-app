@@ -163,21 +163,18 @@ class PDFReportGenerator:
             self.canv.setLineWidth(self.thickness)
             self.canv.line(0, 3, self.width, 3)
 
-    # ── HELPER: convert matplotlib figure to ReportLab Image ──
     def _fig_to_image(self, fig, width=5.5*inch, height=3.5*inch):
-        """Convert matplotlib figure to ReportLab Image without closing the buffer prematurely."""
         buf = io.BytesIO()
         fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
         buf.seek(0)
         img = Image(buf, width=width, height=height)
-        # Store buffer reference so it stays alive until the PDF is built
         if not hasattr(self, '_img_buffers'):
             self._img_buffers = []
         self._img_buffers.append(buf)
         return img
 
     def generate(self, df, overview, stats_results, insights, figures=None, cleaned_df=None):
-        self._img_buffers = []  # Reset for new generation
+        self._img_buffers = []
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer, pagesize=A4,
@@ -199,15 +196,12 @@ class PDFReportGenerator:
             story.append(PageBreak())
         story.extend(self._insights_section(insights))
         doc.build(story, onFirstPage=self._on_first_page, onLaterPages=self._on_later_pages)
-        
-        # Clean up image buffers
         for buf in self._img_buffers:
             try:
                 buf.close()
             except:
                 pass
         self._img_buffers = []
-        
         buffer.seek(0)
         return buffer
 
