@@ -31,6 +31,31 @@ def load_css():
 
 load_css()
 
+# Fix expander text visibility — injected AFTER Streamlit CSS to win specificity
+st.markdown("""
+<style>
+details summary p,
+details summary span,
+details summary div,
+details summary [data-testid="stMarkdownContainer"] p,
+details summary [data-testid="stMarkdownContainer"] span {
+    color: #ffffff !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+details summary {
+    color: #ffffff !important;
+}
+details[open] summary p,
+details[open] summary span,
+details[open] summary div {
+    color: #34D399 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ------------------------------------------------------------------
 # Session state initialisation
 # ------------------------------------------------------------------
@@ -279,12 +304,12 @@ with tabs[1]:
                     cleaned_df, outlier_counts = preprocessor.handle_outliers(cleaned_df)
                 else:
                     outlier_counts = {}
-                st.session_state.cleaned_df    = cleaned_df
-                st.session_state.cleaning_log  = cleaning_log
+                st.session_state.cleaned_df     = cleaned_df
+                st.session_state.cleaning_log   = cleaning_log
                 st.session_state.outlier_counts = outlier_counts
-                st.session_state.stats_results = None
-                st.session_state.insights      = None
-                st.session_state.pdf_bytes     = None
+                st.session_state.stats_results  = None
+                st.session_state.insights       = None
+                st.session_state.pdf_bytes      = None
 
         with col2:
             st.markdown("#### After Preprocessing")
@@ -363,7 +388,6 @@ with tabs[2]:
 
             with st.expander("Correlation Analysis", expanded=True):
                 corr_col = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
-
                 col1, col2 = st.columns(2)
                 for label, key, col in [
                     ("Pearson Correlation",  'pearson_correlation',  col1),
@@ -428,7 +452,7 @@ with tabs[2]:
                         )
                     st.dataframe(styled, use_container_width=True)
                     if 'Condition Number (κ)' in vif.columns:
-                        kappa = vif['Condition Number (κ)'].iloc[0]
+                        kappa  = vif['Condition Number (κ)'].iloc[0]
                         k_risk = vif['κ Risk'].iloc[0]
                         k_color = '#C0392B' if k_risk == 'High' else '#F0A500' if k_risk == 'Moderate' else '#1E8449'
                         st.markdown(f"""
@@ -449,7 +473,6 @@ with tabs[2]:
                     mc3.metric("F-Statistic",  f"{m.get('F-Statistic', 0):.3f}")
                     mc4.metric("AIC",          f"{m.get('AIC', 0):.1f}")
                     mc5.metric("BIC",          f"{m.get('BIC', 0):.1f}")
-
                     sig_c  = _sig_col(reg_df)
                     styled = reg_df.style.map(_green, subset=[sig_c])
                     if 'Sig. after FDR' in reg_df.columns:
@@ -472,7 +495,6 @@ with tabs[3]:
             fig = visualizer.histograms(df)
             if fig:
                 st.pyplot(fig); plt.close(fig)
-
             st.markdown("**Box Plots**")
             fig = visualizer.boxplots(df)
             if fig:
@@ -490,7 +512,6 @@ with tabs[3]:
                 fig = visualizer.correlation_heatmap(df, method='spearman')
                 if fig:
                     st.pyplot(fig); plt.close(fig)
-
             st.markdown("**Pairplot**")
             fig = visualizer.pairplot(df)
             if fig:
@@ -540,7 +561,6 @@ with tabs[4]:
                     <p><strong>Completeness:</strong> {100 - overview['missing_percentage']:.1f}%</p>
                 </div>
                 """, unsafe_allow_html=True)
-
             with col2:
                 highlights = '<br>'.join([f"• {h}" for h in insights.get('highlights', [])[:3]])
                 st.markdown(f"""
@@ -549,7 +569,6 @@ with tabs[4]:
                     <p>{highlights or 'No significant findings'}</p>
                 </div>
                 """, unsafe_allow_html=True)
-
             with col3:
                 warnings = '<br>'.join([f"• {w}" for w in insights.get('warnings', [])[:3]])
                 st.markdown(f"""
@@ -621,7 +640,6 @@ with tabs[5]:
                 status_text.markdown("**Compiling statistics...**");  progress_bar.progress(20)
                 time.sleep(0.3)
                 status_text.markdown("**Rendering visualizations...**"); progress_bar.progress(45)
-
                 figures = []
                 for fn in [
                     lambda: visualizer.histograms(st.session_state.cleaned_df),
@@ -634,12 +652,10 @@ with tabs[5]:
                             figures.append(fig)
                     except Exception:
                         pass
-
                 time.sleep(0.3)
                 status_text.markdown("**Writing insights...**");  progress_bar.progress(70)
                 time.sleep(0.3)
                 status_text.markdown("**Building PDF...**");      progress_bar.progress(85)
-
                 pdf_buffer = pdf_gen.generate(
                     df=st.session_state.uploaded_df,
                     overview=st.session_state.overview,
@@ -651,17 +667,14 @@ with tabs[5]:
                 st.session_state.pdf_bytes = pdf_buffer.getvalue()
                 progress_bar.progress(100)
                 status_text.markdown("**Report generated successfully!**")
-
                 for fig in figures:
                     plt.close(fig)
-
             except Exception as e:
                 st.error(f"Error generating PDF: {e}")
 
         if st.session_state.pdf_bytes is not None:
             st.markdown("---")
             st.success("Your report is ready!")
-
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 st.download_button(
@@ -682,7 +695,6 @@ with tabs[5]:
                                     sheet_name = name[:31]
                                     result_df.to_excel(writer, index=False, sheet_name=sheet_name)
                     excel_buffer.seek(0)
-
                     st.download_button(
                         label="Download Excel Report",
                         data=excel_buffer,
