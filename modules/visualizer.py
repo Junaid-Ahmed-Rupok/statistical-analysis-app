@@ -62,10 +62,13 @@ class Visualizer:
             
             ax.hist(data, bins=30, color=COLORS[0], alpha=0.7, edgecolor='white', density=True)
             
-            if len(data) > 1:
-                kde = stats.gaussian_kde(data)
-                x_range = np.linspace(data.min(), data.max(), 200)
-                ax.plot(x_range, kde(x_range), color=COLORS[1], linewidth=2.5)
+            if len(data) > 1 and data.std() > 0:
+                try:
+                    kde = stats.gaussian_kde(data)
+                    x_range = np.linspace(data.min(), data.max(), 200)
+                    ax.plot(x_range, kde(x_range), color=COLORS[1], linewidth=2.5)
+                except Exception:
+                    pass
             
             ax.set_title(col, fontweight='bold', color=COLORS[0])
             ax.set_ylabel('Density')
@@ -175,6 +178,12 @@ class Visualizer:
         for idx, col in enumerate(numeric_cols):
             ax = axes[idx]
             data = df[col].dropna().values
+            
+            if len(data) < 3 or data.std() == 0:
+                ax.text(0.5, 0.5, 'Insufficient variance', ha='center', va='center',
+                       transform=ax.transAxes, color='#999')
+                ax.set_title(col, fontweight='bold', color=COLORS[0])
+                continue
             
             stats.probplot(data, dist="norm", plot=ax)
             
