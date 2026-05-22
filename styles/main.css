@@ -6,14 +6,14 @@
    ═══════════════════════════════════════════════════ */
 
 :root {
-    --bg-base:       #000000;
-    --bg-raised:     #0a0a0a;
-    --bg-surface:    #111111;
-    --bg-hover:      #161616;
-    --bg-active:     #1a1a1a;
+    --bg-base:       #0d0d0d;
+    --bg-raised:     #141414;
+    --bg-surface:    #1a1a1a;
+    --bg-hover:      #202020;
+    --bg-active:     #262626;
 
-    --border-subtle: #1a1a1a;
-    --border-mid:    #222222;
+    --border-subtle: #242424;
+    --border-mid:    #2e2e2e;
     --border-strong: #2a3a2e;
 
     --em:            #34D399;
