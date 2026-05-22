@@ -925,3 +925,49 @@ hr {
     .stTabs [data-baseweb="tab"]      { padding: 8px 10px !important; font-size: 11px !important; }
     [data-testid="stFileUploader"]    { padding: 20px 14px !important; }
 }
+
+
+/* ═══════════════════════════════════════════════════
+   CRITICAL: Expander header text — must be visible
+   These go last to win specificity wars
+   ═══════════════════════════════════════════════════ */
+
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+[data-testid="stExpander"] summary div,
+[data-testid="stExpander"] summary label,
+[data-testid="stExpander"] > div > div > div > div,
+[data-testid="stExpander"] > div > div > div > div > p,
+[data-testid="stExpander"] > div > div > div > div > span,
+[data-testid="stExpanderDetails"] > div > div,
+[data-testid="stExpanderDetails"] p,
+details > summary p,
+details > summary span,
+details > summary div {
+    color: #ffffff !important;
+    font-family: var(--font-mono) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Streamlit's specific expander label class */
+.st-emotion-cache-1h9usn1,
+.st-emotion-cache-sh2krr,
+.st-emotion-cache-1gulkj5,
+[data-testid="stExpander"] [class*="st-emotion-cache"] p,
+[data-testid="stExpander"] [class*="st-emotion-cache"] span {
+    color: #ffffff !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    font-size: 13px !important;
+    font-family: var(--font-mono) !important;
+}
+
+/* Hover state */
+[data-testid="stExpander"] summary:hover p,
+[data-testid="stExpander"] summary:hover span,
+[data-testid="stExpander"] summary:hover div {
+    color: var(--em) !important;
+}
