@@ -1,0 +1,448 @@
+"""
+ml_engine.py — Production ML Pipeline for StatsPro
+Auto-detects regression vs classification, trains 6 models,
+returns metrics, feature importance, and best model for predictions.
+"""
+
+import logging
+import warnings
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import (
+    AdaBoostClassifier, AdaBoostRegressor,
+    RandomForestClassifier, RandomForestRegressor,
+)
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import (
+    accuracy_score, f1_score, mean_absolute_error,
+    mean_squared_error, precision_score, r2_score, recall_score,
+)
+from sklearn.model_selection import (
+    KFold, StratifiedKFold, cross_val_score, train_test_split,
+)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from xgboost import XGBClassifier, XGBRegressor
+from catboost import CatBoostClassifier, CatBoostRegressor
+import joblib
+
+warnings.filterwarnings("ignore")
+
+logger = logging.getLogger(__name__)
+
+# Models that are sensitive to feature scale and need a StandardScaler.
+# Tree-based models (Random Forest, XGBoost, CatBoost, AdaBoost, Decision Tree)
+# are scale-invariant and should NOT be scaled — it wastes compute and can
+# obscure feature-importance magnitudes.
+_SCALING_REQUIRED = frozenset({"Linear Regression", "Logistic Regression"})
+
+
+def _make_pipeline(name: str, model) -> Pipeline:
+    """Wrap a model in a scaling Pipeline only when the algorithm needs it."""
+    if name in _SCALING_REQUIRED:
+        return Pipeline([("scaler", StandardScaler()), ("model", model)])
+    return Pipeline([("model", model)])  # passthrough — consistent interface
+
+
+class MLEngine:
+    """
+    AutoML pipeline supporting regression and classification.
+
+    Typical usage::
+
+        engine = MLEngine()
+        results_df = engine.run(df, target="price")
+        predictions = engine.predict(new_df)
+    """
+
+    # ------------------------------------------------------------------
+    # Construction & reset
+    # ------------------------------------------------------------------
+
+    def __init__(self):
+        self._reset()
+
+    def _reset(self):
+        """Wipe all fitted state so the engine can be re-used cleanly."""
+        self.task: str | None = None
+        self.target_col: str | None = None
+        self.feature_cols: list[str] = []
+        self.pipelines: dict[str, Pipeline] = {}
+        self.results: pd.DataFrame | None = None
+        self.best_pipeline: Pipeline | None = None
+        self.best_model_name: str | None = None
+        self.feature_importance: pd.DataFrame | None = None
+        self.label_encoders: dict[str, LabelEncoder] = {}
+        self.confusion_matrices: dict[str, np.ndarray] = {}
+
+    # ------------------------------------------------------------------
+    # Task detection
+    # ------------------------------------------------------------------
+
+    def detect_task(self, df: pd.DataFrame, target: str) -> str:
+        """
+        Infer whether *target* is a regression or classification problem.
+
+        Rules (in priority order):
+        1. Non-numeric dtype  → classification.
+        2. Boolean dtype      → classification.
+        3. Fewer than 16 unique values → classification.
+        4. Unique-value ratio < 5 %   → classification (e.g. integer codes).
+        5. Otherwise          → regression.
+        """
+        col = df[target].dropna()
+        dtype = col.dtype
+
+        if dtype == "bool" or hasattr(dtype, "categories"):
+            return "classification"
+        if dtype == "object":
+            return "classification"
+        if col.nunique() <= 15:
+            return "classification"
+        if col.nunique() / len(col) < 0.05:
+            return "classification"
+        return "regression"
+
+    # ------------------------------------------------------------------
+    # Data preparation
+    # ------------------------------------------------------------------
+
+    def _impute(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Simple but safe imputation:
+        - Numeric columns  → median (robust to outliers).
+        - Categorical cols → mode (most frequent value).
+        """
+        df = df.copy()
+        for col in df.columns:
+            if df[col].isna().any():
+                if df[col].dtype in ["object", "category"]:
+                    df[col].fillna(df[col].mode().iloc[0], inplace=True)
+                else:
+                    df[col].fillna(df[col].median(), inplace=True)
+        return df
+
+    def prepare_data(
+        self, df: pd.DataFrame, target: str
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Impute → encode categoricals → return (X, y) arrays.
+
+        Label encoders are stored on *self* so ``predict`` can apply the
+        same transformation at inference time.
+        """
+        self.target_col = target
+        self.feature_cols = [c for c in df.columns if c != target]
+
+        # Drop rows where the target is missing — we cannot train on them.
+        df_clean = df.dropna(subset=[target]).copy()
+        df_clean = self._impute(df_clean)
+
+        # Encode the target for classification problems with string labels.
+        if self.task == "classification" and df_clean[target].dtype == "object":
+            le = LabelEncoder()
+            df_clean[target] = le.fit_transform(df_clean[target].astype(str))
+            self.label_encoders[target] = le
+
+        # Encode categorical feature columns.
+        for col in self.feature_cols:
+            if df_clean[col].dtype in ["object", "category"]:
+                le = LabelEncoder()
+                df_clean[col] = le.fit_transform(df_clean[col].astype(str))
+                self.label_encoders[col] = le
+
+        X = df_clean[self.feature_cols].values.astype(float)
+        y = df_clean[target].values
+
+        return X, y
+
+    # ------------------------------------------------------------------
+    # Model definitions
+    # ------------------------------------------------------------------
+
+    def _build_models(self) -> dict:
+        if self.task == "regression":
+            return {
+                "Linear Regression": LinearRegression(),
+                "Decision Tree": DecisionTreeRegressor(max_depth=10, random_state=42),
+                "Random Forest": RandomForestRegressor(
+                    n_estimators=100, max_depth=15, random_state=42, n_jobs=-1
+                ),
+                "XGBoost": XGBRegressor(
+                    n_estimators=100, max_depth=6, learning_rate=0.1,
+                    random_state=42, verbosity=0,
+                ),
+                "CatBoost": CatBoostRegressor(
+                    n_estimators=100, depth=6, learning_rate=0.1,
+                    random_seed=42, verbose=0,
+                ),
+                "AdaBoost": AdaBoostRegressor(n_estimators=100, random_state=42),
+            }
+        return {
+            "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+            "Decision Tree": DecisionTreeClassifier(max_depth=10, random_state=42),
+            "Random Forest": RandomForestClassifier(
+                n_estimators=100, max_depth=15, random_state=42, n_jobs=-1
+            ),
+            "XGBoost": XGBClassifier(
+                n_estimators=100, max_depth=6, learning_rate=0.1,
+                random_state=42, verbosity=0, eval_metric="logloss",
+            ),
+            "CatBoost": CatBoostClassifier(
+                n_estimators=100, depth=6, learning_rate=0.1,
+                random_seed=42, verbose=0,
+            ),
+            "AdaBoost": AdaBoostClassifier(
+                n_estimators=100, random_state=42, algorithm="SAMME"
+            ),
+        }
+
+    # ------------------------------------------------------------------
+    # Training
+    # ------------------------------------------------------------------
+
+    def run(self, df: pd.DataFrame, target: str) -> pd.DataFrame:
+        """
+        Train all models and return a comparison DataFrame.
+
+        The engine is fully reset before each call so you can safely call
+        ``run()`` multiple times on the same instance with different data.
+
+        Parameters
+        ----------
+        df:
+            Input DataFrame containing both features and the target column.
+        target:
+            Name of the column to predict.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per model with cross-validation and held-out test metrics.
+        """
+        self._reset()
+
+        self.task = self.detect_task(df, target)
+        logger.info("Detected task: %s (target=%r)", self.task, target)
+
+        X, y = self.prepare_data(df, target)
+
+        # Use a sensible, fixed test split rather than a fragile formula.
+        test_size = 0.15 if len(X) < 100 else 0.2
+        stratify = y if self.task == "classification" else None
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=42, stratify=stratify
+        )
+
+        cv = (
+            StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+            if self.task == "classification"
+            else KFold(n_splits=5, shuffle=True, random_state=42)
+        )
+
+        models = self._build_models()
+        # Wrap every model in a pipeline (adds scaler only where needed).
+        self.pipelines = {
+            name: _make_pipeline(name, model) for name, model in models.items()
+        }
+
+        results = []
+        for name, pipe in self.pipelines.items():
+            try:
+                row = self._train_and_evaluate(
+                    name, pipe, X_train, X_test, y_train, y_test, cv
+                )
+            except Exception as exc:
+                logger.error("Model %r failed: %s", name, exc, exc_info=True)
+                row = {"Model": name, "Error": str(exc)}
+            results.append(row)
+
+        self.results = pd.DataFrame(results)
+        self._select_best_model()
+        self._extract_feature_importance()
+
+        return self.results
+
+    def _train_and_evaluate(
+        self, name, pipe, X_train, X_test, y_train, y_test, cv
+    ) -> dict:
+        """Fit *pipe*, compute CV + held-out metrics, return a result dict."""
+        if self.task == "regression":
+            cv_scores = cross_val_score(pipe, X_train, y_train, cv=cv, scoring="r2")
+            pipe.fit(X_train, y_train)
+            y_pred = pipe.predict(X_test)
+            return {
+                "Model": name,
+                "CV R² (mean)": round(float(cv_scores.mean()), 4),
+                "CV R² (std)": round(float(cv_scores.std()), 4),
+                "Test R²": round(float(r2_score(y_test, y_pred)), 4),
+                "Test RMSE": round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4),
+                "Test MAE": round(float(mean_absolute_error(y_test, y_pred)), 4),
+            }
+        else:
+            cv_scores = cross_val_score(pipe, X_train, y_train, cv=cv, scoring="accuracy")
+            pipe.fit(X_train, y_train)
+            y_pred = pipe.predict(X_test)
+            self.confusion_matrices[name] = (
+                pd.crosstab(y_test, y_pred, rownames=["Actual"], colnames=["Predicted"])
+            )
+            return {
+                "Model": name,
+                "CV Accuracy (mean)": round(float(cv_scores.mean()), 4),
+                "CV Accuracy (std)": round(float(cv_scores.std()), 4),
+                "Test Accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
+                "Test Precision": round(float(precision_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+                "Test Recall": round(float(recall_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+                "Test F1": round(float(f1_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+            }
+
+    def _select_best_model(self):
+        """Pick the best pipeline based on the primary held-out metric."""
+        metric = "Test R²" if self.task == "regression" else "Test F1"
+        valid = self.results.dropna(subset=[metric])
+
+        if valid.empty:
+            raise RuntimeError(
+                "All models failed during training. Check the logs for details."
+            )
+
+        best_idx = valid[metric].idxmax()
+        self.best_model_name = self.results.loc[best_idx, "Model"]
+        self.best_pipeline = self.pipelines[self.best_model_name]
+        logger.info("Best model: %s (held-out %s = %s)", self.best_model_name, metric,
+                    self.results.loc[best_idx, metric])
+
+    def _extract_feature_importance(self):
+        """Pull feature importances / coefficients from the best model step."""
+        if self.best_pipeline is None:
+            return
+
+        model = self.best_pipeline.named_steps["model"]
+
+        if hasattr(model, "feature_importances_"):
+            importances = model.feature_importances_
+        elif hasattr(model, "coef_"):
+            coef = model.coef_
+            importances = np.abs(coef[0] if coef.ndim > 1 else coef)
+        else:
+            return
+
+        self.feature_importance = (
+            pd.DataFrame({"Feature": self.feature_cols, "Importance": importances})
+            .sort_values("Importance", ascending=False)
+            .reset_index(drop=True)
+        )
+
+    # ------------------------------------------------------------------
+    # Inference
+    # ------------------------------------------------------------------
+
+    def predict(self, input_df: pd.DataFrame) -> np.ndarray:
+        """
+        Make predictions using the best model found by ``run()``.
+
+        Parameters
+        ----------
+        input_df:
+            DataFrame with the same feature columns used during training.
+            The target column should *not* be present.
+
+        Returns
+        -------
+        np.ndarray
+            Predicted values. Classification targets are decoded back to
+            their original string labels when applicable.
+        """
+        if self.best_pipeline is None:
+            raise RuntimeError("No trained model available. Call .run() first.")
+
+        missing_cols = set(self.feature_cols) - set(input_df.columns)
+        if missing_cols:
+            raise ValueError(
+                f"Input DataFrame is missing required columns: {sorted(missing_cols)}"
+            )
+
+        df_clean = input_df[self.feature_cols].copy()
+        df_clean = self._impute(df_clean)
+
+        for col in self.feature_cols:
+            if col in self.label_encoders:
+                le = self.label_encoders[col]
+                raw = df_clean[col].astype(str)
+                known_mask = raw.isin(le.classes_)
+                if not known_mask.all():
+                    unknown = raw[~known_mask].unique().tolist()
+                    warnings.warn(
+                        f"Column '{col}' contains values unseen during training: "
+                        f"{unknown}. They will be encoded as the most frequent class.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    # Map unknowns to the most frequent training class.
+                    raw = raw.where(known_mask, le.classes_[0])
+                df_clean[col] = le.transform(raw)
+            elif df_clean[col].dtype in ["object", "category"]:
+                warnings.warn(
+                    f"Column '{col}' is categorical but has no fitted encoder. "
+                    "Substituting 0.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                df_clean[col] = 0
+
+        X = df_clean.values.astype(float)
+        preds = self.best_pipeline.predict(X)
+
+        # Decode integer-encoded classification labels back to strings.
+        if self.task == "classification" and self.target_col in self.label_encoders:
+            preds = self.label_encoders[self.target_col].inverse_transform(
+                preds.astype(int)
+            )
+
+        return preds
+
+    def predict_proba(self, input_df: pd.DataFrame) -> np.ndarray:
+        """
+        Return class-probability estimates (classification only).
+
+        Raises ``RuntimeError`` for regression tasks or models that do not
+        support probability estimates.
+        """
+        if self.task != "classification":
+            raise RuntimeError("predict_proba is only available for classification tasks.")
+        if not hasattr(self.best_pipeline, "predict_proba"):
+            raise RuntimeError(
+                f"{self.best_model_name} does not support probability estimates."
+            )
+        # Reuse the same preprocessing path.
+        dummy_pred = self.predict(input_df)  # triggers validation + encoding
+        # Re-encode without decoding labels so we can pass raw X to the pipeline.
+        df_clean = input_df[self.feature_cols].copy()
+        df_clean = self._impute(df_clean)
+        for col in self.feature_cols:
+            if col in self.label_encoders:
+                le = self.label_encoders[col]
+                raw = df_clean[col].astype(str).where(
+                    df_clean[col].astype(str).isin(le.classes_), le.classes_[0]
+                )
+                df_clean[col] = le.transform(raw)
+            elif df_clean[col].dtype in ["object", "category"]:
+                df_clean[col] = 0
+        return self.best_pipeline.predict_proba(df_clean.values.astype(float))
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def save(self, path: str):
+        """Persist the entire engine to *path* using joblib."""
+        joblib.dump(self, path)
+        logger.info("Engine saved to %s", path)
+
+    @classmethod
+    def load(cls, path: str) -> "MLEngine":
+        """Load a previously saved engine from *path*."""
+        engine = joblib.load(path)
+        logger.info("Engine loaded from %s", path)
+        return engine
