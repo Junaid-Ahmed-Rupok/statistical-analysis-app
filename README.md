@@ -2,9 +2,10 @@
 
 <div align="center">
 
-![StatsPro Banner](https://img.shields.io/badge/StatsPro-v1.0-gold?style=for-the-badge)
+![StatsPro](https://img.shields.io/badge/StatsPro-v2.3-emerald?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.28.0-red?style=for-the-badge&logo=streamlit)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.57-red?style=for-the-badge&logo=streamlit)
+![ML](https://img.shields.io/badge/ML-6%20Models-purple?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 **Turn Raw Data Into Powerful Insights — Instantly.**
@@ -17,67 +18,111 @@
 
 ## 🌟 Overview
 
-StatsPro is a premium, production-grade Streamlit web application that transforms CSV data into comprehensive statistical analysis, beautiful visualizations, and professional PDF reports. Built with a focus on user experience, design excellence, and statistical rigor.
+StatsPro is a production-grade Streamlit web application that transforms any CSV file into comprehensive exploratory data analysis, statistical testing, machine learning modeling, and professional PDF reports — all in seconds.
 
-### Why StatsPro?
+Built with a premium dark theme, monospace typography, and emerald green accents. Designed to make you look like a senior data scientist without writing a single line of code.
 
-- **🎨 Premium Design** — Inspired by Mixpanel, Tableau, and Notion AI
-- **⚡ Instant Analysis** — 9 statistical tests, 15+ visualizations in seconds
-- **🤖 AI Insights** — Automated interpretation and recommendations
-- **📄 Professional Reports** — Downloadable PDF reports for sharing
-- **🔒 Private & Secure** — All processing happens locally, no data leaves your browser
+### 🎯 Live Demo
+
+👉 **[Try StatsPro Now](https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app)**
 
 ---
 
 ## ✨ Features
 
-### 📂 Smart Data Upload
+### 📂 Smart Data Upload & Overview
 - Drag-and-drop CSV upload (up to 200MB)
-- Automatic data quality assessment
-- Real-time missing value analysis
-- Quality scoring system (0-100)
+- Built-in sample dataset for instant testing
+- Automatic data quality scoring (0-100)
+- Real-time missing value analysis with color-coded table
+- Column type detection and memory usage
 
 ### ⚙️ Intelligent Preprocessing
-- Automatic duplicate removal
-- Smart missing value imputation (median/mode)
-- IQR-based outlier detection with Winsorization
-- Label encoding & standardization
-- Download cleaned datasets
+- KNN imputation for numeric columns (k=5)
+- Mode imputation for categorical columns
+- IQR-based outlier detection with Winsorization (capping)
+- Exact duplicate removal
+- Constant column detection and removal
+- Download cleaned dataset as CSV
+- Full preprocessing activity log
+
+### 📊 Exploratory Data Analysis (EDA)
+- Column-by-column summary (type, unique values, missing %, statistics)
+- Numeric distribution histograms
+- Categorical bar charts (top 10 values)
+- Ranked correlation table with color-coded strength
+- Missing value heatmap
+- Descriptive statistics (mean, median, std, min, max, skewness)
 
 ### 🧪 Comprehensive Statistical Testing
-| Test | Description |
-|------|-------------|
-| Shapiro-Wilk / KS | Normality testing |
-| Pearson & Spearman | Correlation analysis |
-| Chi-Square | Categorical associations |
-| Levene's Test | Variance equality |
-| One-Way ANOVA | Group comparisons |
-| Mann-Whitney U | Non-parametric testing |
-| VIF Analysis | Multicollinearity detection |
+| Test | Description | Extras |
+|------|-------------|--------|
+| Shapiro-Wilk / D'Agostino-Pearson / Anderson-Darling | Scale-aware normality testing | Skewness & Kurtosis |
+| Pearson & Spearman | Correlation analysis | 95% Confidence Intervals |
+| Chi-Square | Categorical independence | Cramér's V effect size |
+| One-Way ANOVA | Group comparisons | Eta-Squared (η²) effect size |
+| Mann-Whitney U | Non-parametric group test | Rank-Biserial correlation |
+| Levene's Test | Variance equality | — |
+| VIF Analysis | Multicollinearity detection | Condition Number (κ) |
+| OLS Regression | Auto-target linear modeling | R², AIC, BIC, full summary |
 
-### 📈 Professional Visualizations
-- Distribution analysis (Histograms + KDE)
-- Box plots with outlier detection
-- Correlation heatmaps (Pearson & Spearman)
-- Pairwise relationship plots
+All tests include **Benjamini-Hochberg FDR correction** to protect against false positives.
+
+### 📈 Professional Visualizations (15+)
+- Histograms with KDE overlay
+- Box plots with outlier markers
+- Pearson & Spearman correlation heatmaps
+- Pairwise scatter plots (pairplot)
 - Q-Q plots for normality assessment
-- VIF bar charts with risk indicators
-- Missing value matrices
+- VIF bar charts with risk color-coding
 
 ### 💡 AI-Powered Insights
-- Automated pattern detection
-- Data quality warnings
-- Statistical significance highlights
-- Actionable recommendations
-- Readiness scoring for advanced analysis
+- Executive data quality tier assessment
+- Missing data mechanism analysis (MCAR/MAR/MNAR)
+- Skewness & kurtosis interpretation with transformation recommendations
+- Correlation strength analysis with confidence intervals
+- Multicollinearity remediation paths
+- FDR correction impact quantification
+- Prioritized recommendations (P1/P2/P3)
+- Production readiness score (0-100)
+
+### 🤖 Machine Learning Studio
+- **Auto-detection** of regression vs classification tasks
+- **6 models trained simultaneously**:
+  - Linear/Logistic Regression
+  - Decision Tree
+  - Random Forest
+  - XGBoost
+  - CatBoost
+  - AdaBoost
+- **5-fold cross-validation** with held-out test metrics
+- Model comparison table (best model highlighted)
+- Feature importance visualization
+- **Live prediction form** — enter values, get instant predictions
+- Automatic handling of mixed-type columns (numeric + string values)
 
 ### 📄 PDF Report Generation
-- Executive summary with key metrics
-- Complete statistical test results
-- High-resolution visualizations
-- Professional navy/gold styling
-- Confidentiality watermarks
-- Page numbers and branding
+- Professional cover page with gold accents
+- Executive summary with KPI cards
+- Complete data overview and column summaries
+- All statistical test results with color-coded p-values
+- High-resolution embedded visualizations
+- AI-powered insights and recommendations
+- Confidentiality watermarks and page numbers
+
+### 📥 Export Options
+- **PDF Report** — professional, branded, shareable
+- **Excel Report** — all data + test results in separate sheets
+- **Cleaned CSV** — download preprocessed data
+
+---
+
+## 🎨 Design System
+
+- **Theme:** Pure black background with emerald green (#34D399) accents
+- **Typography:** JetBrains Mono (headings, code) + Space Grotesk (body)
+- **Animations:** Fade-in on elements, cursor blink on metrics, hover effects
+- **Responsive:** Fully functional on desktop and tablet
 
 ---
 
@@ -89,7 +134,13 @@ StatsPro is a premium, production-grade Streamlit web application that transform
 
 ### Local Setup
 
-1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/statspro.git
-cd statspro
+# 1. Clone the repository
+git clone https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app.git
+cd statistical-analysis-app
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the app
+streamlit run app.py
