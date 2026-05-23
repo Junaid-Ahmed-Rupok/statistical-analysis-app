@@ -119,7 +119,6 @@ def _corr_col(df):
     return 'Correlation (r)' if 'Correlation (r)' in df.columns else 'Correlation'
 
 def _safe_col_stats(series):
-    """Return (min, max, mean) for a numeric series, guarding against all-NaN and empty series."""
     if series is None or len(series) == 0:
         return 0.0, 1.0, 0.0
     clean = series.dropna()
@@ -902,6 +901,7 @@ with tabs[7]:
 
     if st.session_state.cleaned_df is not None:
         df = st.session_state.cleaned_df
+        df_orig = st.session_state.uploaded_df
 
         col_t1, col_t2 = st.columns([1, 2])
         with col_t1:
@@ -987,8 +987,8 @@ with tabs[7]:
             for i, col in enumerate(ml_engine.feature_cols):
                 with pred_cols[i % len(pred_cols)]:
                     if col in df.columns:
-                        if df[col].dtype in ['object', 'category']:
-                            options = df[col].dropna().unique().tolist()
+                        if col in df_orig.columns and df_orig[col].dtype in ['object', 'category']:
+                            options = df_orig[col].dropna().unique().tolist()
                             input_data[col] = st.selectbox(col, options, key=f"pred_{col}")
                         else:
                             col_min, col_max, col_mean = _safe_col_stats(df[col])
