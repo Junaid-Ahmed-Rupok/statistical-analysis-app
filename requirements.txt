@@ -10,3 +10,6 @@ missingno
 reportlab
 fpdf2
 openpyxl
+xgboost
+catboost
+joblib
