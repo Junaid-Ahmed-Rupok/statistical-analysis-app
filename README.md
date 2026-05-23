@@ -144,3 +144,82 @@ pip install -r requirements.txt
 
 # 3. Run the app
 streamlit run app.py
+
+Open http://localhost:8501 in your browser.
+
+---
+
+## 📦 Project Structure
+statistical-analysis-app/
+├── app.py                    # Main Streamlit application (8 tabs)
+├── requirements.txt          # Python dependencies
+├── LICENSE                   # MIT License
+├── README.md                 # This file
+├── styles/
+│   └── main.css              # Complete dark theme CSS
+└── modules/
+    ├── __init__.py
+    ├── preprocessor.py       # Data cleaning & preprocessing
+    ├── statistics.py         # Statistical analysis engine (10 tests)
+    ├── visualizer.py         # Chart generation (15+ types)
+    ├── insights.py           # AI-powered insights generator
+    ├── pdf_generator.py      # Professional PDF report builder
+    └── ml_engine.py          # AutoML pipeline (6 models)
+
+
+
+---
+
+## 🎯 Usage Guide
+
+1. **Upload** → Tab 1 — Upload CSV or load sample dataset
+2. **Preprocess** → Tab 2 — Clean data, handle outliers
+3. **EDA** → Tab 3 — Column summaries, distributions, correlations
+4. **Statistics** → Tab 4 — Run 10 statistical tests
+5. **Visualizations** → Tab 5 — Charts, heatmaps, Q-Q plots
+6. **Insights** → Tab 6 — AI-generated narrative report
+7. **Export** → Tab 7 — Download PDF + Excel reports
+8. **ML Studio** → Tab 8 — Train 6 models, make predictions
+
+---
+
+## 🌐 Deployment
+
+Already deployed on Streamlit Cloud. Auto-updates on every push to `main`.
+
+To deploy your own:
+1. Fork this repo
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect GitHub → Select repo → Deploy
+
+---
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Framework | Streamlit |
+| Data | Pandas, NumPy |
+| Statistics | SciPy, Statsmodels |
+| ML | Scikit-learn, XGBoost, CatBoost |
+| Charts | Matplotlib, Seaborn |
+| PDF | ReportLab |
+| Excel | OpenPyXL |
+| Design | Custom CSS, JetBrains Mono, Space Grotesk |
+
+---
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+<div align="center">
+
+**Built with ❤️ by Junaid Ahmed Rupok**
+
+*StatsPro — Professional Statistical Analysis Made Simple*
+
+</div>
+
