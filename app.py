@@ -583,7 +583,7 @@ with tabs[3]:
         if st.session_state.stats_results is not None:
             sr = st.session_state.stats_results
 
-            with st.expander("📊 Normality Tests", expanded=True):
+            with st.expander("📊 Normality Tests — Shapiro-Wilk · D'Agostino-Pearson · Anderson-Darling", expanded=True):
                 norm = sr.get('normality', pd.DataFrame())
                 if not norm.empty:
                     styled = norm.style.map(_green, subset=['Normal'])
@@ -591,7 +591,7 @@ with tabs[3]:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                     st.dataframe(styled, use_container_width=True)
 
-            with st.expander("🔗 Correlation Analysis", expanded=True):
+            with st.expander("🔗 Correlation Analysis — Pearson & Spearman with Effect Sizes & FDR", expanded=True):
                 corr_col_name = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
                 col1, col2 = st.columns(2)
                 for lbl, key, col in [
@@ -611,10 +611,10 @@ with tabs[3]:
                             st.dataframe(styled, use_container_width=True)
 
             for name, key, extra_cols in [
-                ("Chi-Square + Cramér's V", 'chi_square',   ['Effect Size']),
-                ("ANOVA + Eta-Squared",     'anova',        ['Effect Size']),
-                ("Mann-Whitney U",          'mann_whitney', ['Effect Size']),
-                ("Levene's Test",           'levene',       []),
+                ("📐 Chi-Square Independence Test + Cramér's V Effect Size", 'chi_square',   ['Effect Size']),
+                ("📏 One-Way ANOVA + Eta-Squared (η²) Effect Size",          'anova',        ['Effect Size']),
+                ("📉 Mann-Whitney U Test + Rank-Biserial Correlation",        'mann_whitney', ['Effect Size']),
+                ("⚖️ Levene's Test — Equality of Variances",                 'levene',       []),
             ]:
                 df_test = sr.get(key, pd.DataFrame())
                 if not df_test.empty:
@@ -628,7 +628,7 @@ with tabs[3]:
 
             vif = sr.get('vif', pd.DataFrame())
             if not vif.empty:
-                with st.expander("🏗️ Multicollinearity — VIF + κ", expanded=False):
+                with st.expander("🏗️ Multicollinearity Analysis — VIF Scores + Condition Number (κ)", expanded=False):
                     styled = vif.style.map(_color_vif, subset=['VIF'])
                     if 'κ Risk' in vif.columns:
                         styled = styled.map(
@@ -652,7 +652,7 @@ with tabs[3]:
             reg_df    = sr.get('regression', pd.DataFrame())
             ols_stats = sr.get('ols_model_stats', {})
             if not reg_df.empty and ols_stats:
-                with st.expander(f"📈 OLS Regression — {ols_stats.get('Target', '')}", expanded=True):
+                with st.expander(f"📈 OLS Regression — Predicting: {ols_stats.get('Target', '')} | R²={ols_stats.get('R²', 0):.3f}", expanded=True):
                     m = ols_stats
                     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
                     mc1.metric("R²",      f"{m.get('R²', 0):.4f}")
