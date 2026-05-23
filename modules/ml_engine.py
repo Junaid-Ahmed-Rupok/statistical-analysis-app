@@ -123,6 +123,31 @@ class MLEngine:
                     df[col].fillna(df[col].median(), inplace=True)
         return df
 
+    def _resolve_mixed_type_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Detect columns that are declared numeric but contain non-numeric
+        strings (e.g. "Level 1", "N/A"). Rather than silently coercing them
+        to NaN and filling with the median — which fabricates data — we
+        reclassify them as categorical so LabelEncoder picks them up properly
+        and the model can learn from the actual values.
+        """
+        df = df.copy()
+        for col in self.feature_cols:
+            if df[col].dtype in ["object", "category"]:
+                continue  # already categorical — nothing to do
+            coerced = pd.to_numeric(df[col], errors="coerce")
+            new_nans = coerced.isna().sum() - df[col].isna().sum()
+            if new_nans > 0:
+                logger.warning(
+                    "Column '%s' has mixed types (%d value(s) could not be parsed as "
+                    "numeric, e.g. %r). Reclassifying as categorical.",
+                    col,
+                    new_nans,
+                    df[col][coerced.isna() & df[col].notna()].iloc[0],
+                )
+                df[col] = df[col].astype(str)
+        return df
+
     def prepare_data(
         self, df: pd.DataFrame, target: str
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -131,12 +156,21 @@ class MLEngine:
 
         Label encoders are stored on *self* so ``predict`` can apply the
         same transformation at inference time.
+
+        Mixed-type columns (numeric dtype but containing strings like
+        "Level 1") are reclassified as categorical before encoding so their
+        signal is preserved rather than fabricated.
         """
         self.target_col = target
         self.feature_cols = [c for c in df.columns if c != target]
 
         # Drop rows where the target is missing — we cannot train on them.
         df_clean = df.dropna(subset=[target]).copy()
+
+        # Reclassify any mixed-type feature columns BEFORE imputation so that
+        # _impute uses the correct mode/median strategy for each column.
+        df_clean = self._resolve_mixed_type_columns(df_clean)
+
         df_clean = self._impute(df_clean)
 
         # Encode the target for classification problems with string labels.
@@ -364,6 +398,9 @@ class MLEngine:
             )
 
         df_clean = input_df[self.feature_cols].copy()
+
+        # Apply the same mixed-type reclassification as during training.
+        df_clean = self._resolve_mixed_type_columns(df_clean)
         df_clean = self._impute(df_clean)
 
         for col in self.feature_cols:
@@ -379,7 +416,6 @@ class MLEngine:
                         UserWarning,
                         stacklevel=2,
                     )
-                    # Map unknowns to the most frequent training class.
                     raw = raw.where(known_mask, le.classes_[0])
                 df_clean[col] = le.transform(raw)
             elif df_clean[col].dtype in ["object", "category"]:
@@ -415,10 +451,8 @@ class MLEngine:
             raise RuntimeError(
                 f"{self.best_model_name} does not support probability estimates."
             )
-        # Reuse the same preprocessing path.
-        dummy_pred = self.predict(input_df)  # triggers validation + encoding
-        # Re-encode without decoding labels so we can pass raw X to the pipeline.
         df_clean = input_df[self.feature_cols].copy()
+        df_clean = self._resolve_mixed_type_columns(df_clean)
         df_clean = self._impute(df_clean)
         for col in self.feature_cols:
             if col in self.label_encoders:
