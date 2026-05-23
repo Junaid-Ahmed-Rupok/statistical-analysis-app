@@ -35,8 +35,6 @@ def load_css():
 load_css()
 
 # ── Session state initialisation ────────────────────────────────
-# Module instances are stored in session_state so each browser session
-# gets its own isolated copies — prevents cross-user state corruption.
 _defaults = {
     'uploaded_df':    None,
     'cleaned_df':     None,
@@ -51,7 +49,6 @@ _defaults = {
     'ml_results':     None,
     'ml_target':      None,
     'ml_best_model':  None,
-    # Per-session module instances
     'preprocessor':   None,
     'analyzer':       None,
     'visualizer':     None,
@@ -63,7 +60,6 @@ for k, v in _defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Initialise stateful module instances once per session
 if st.session_state.preprocessor is None:
     st.session_state.preprocessor  = DataPreprocessor()
 if st.session_state.analyzer is None:
@@ -77,7 +73,6 @@ if st.session_state.pdf_gen is None:
 if st.session_state.ml_engine is None:
     st.session_state.ml_engine     = MLEngine()
 
-# Convenience aliases (reads only — mutations go through st.session_state)
 preprocessor = st.session_state.preprocessor
 analyzer     = st.session_state.analyzer
 visualizer   = st.session_state.visualizer
@@ -124,11 +119,16 @@ def _corr_col(df):
     return 'Correlation (r)' if 'Correlation (r)' in df.columns else 'Correlation'
 
 def _safe_col_stats(series):
-    """Return (min, max, mean) for a numeric series, guarding against all-NaN."""
+    """Return (min, max, mean) for a numeric series, guarding against all-NaN and empty series."""
+    if series is None or len(series) == 0:
+        return 0.0, 1.0, 0.0
     clean = series.dropna()
     if clean.empty:
         return 0.0, 1.0, 0.0
-    return float(clean.min()), float(clean.max()), float(clean.mean())
+    try:
+        return float(clean.min()), float(clean.max()), float(clean.mean())
+    except Exception:
+        return 0.0, 1.0, 0.0
 
 # ════════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -269,7 +269,6 @@ with tabs[0]:
                   'ml_results', 'ml_target', 'ml_best_model']:
             st.session_state[k] = _defaults.get(k, None)
         st.session_state.overview = preprocessor.get_overview(sample_df)
-        # Reset ML engine for the new dataset
         st.session_state.ml_engine = MLEngine()
         ml_engine = st.session_state.ml_engine
         st.rerun()
@@ -283,7 +282,6 @@ with tabs[0]:
                              'insights_gen', 'pdf_gen', 'ml_engine'):
                     st.session_state[k] = v
             st.session_state.loaded_file_name = uploaded_file.name
-            # Fresh ML engine for each new file
             st.session_state.ml_engine = MLEngine()
             ml_engine = st.session_state.ml_engine
 
@@ -364,7 +362,6 @@ with tabs[1]:
                 st.session_state.cleaned_df     = cleaned_df
                 st.session_state.cleaning_log   = cleaning_log
                 st.session_state.outlier_counts = outlier_counts
-                # Invalidate downstream results when data changes
                 st.session_state.stats_results  = None
                 st.session_state.insights       = None
                 st.session_state.pdf_bytes      = None
@@ -427,7 +424,6 @@ with tabs[2]:
     if st.session_state.cleaned_df is not None:
         df = st.session_state.cleaned_df
 
-        # ── Column Summary Table ──────────────────────────────
         st.markdown("#### 📋 Column Summary")
         summary_data = []
         for col in df.columns:
@@ -467,7 +463,6 @@ with tabs[2]:
         st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
         st.markdown("---")
 
-        # ── Numeric Distributions ─────────────────────────────
         st.markdown("#### 📈 Numeric Column Distributions")
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         if numeric_cols:
@@ -489,7 +484,6 @@ with tabs[2]:
 
         st.markdown("---")
 
-        # ── Categorical Bar Charts ────────────────────────────
         st.markdown("#### 📊 Categorical Column Distributions")
         cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
         if cat_cols:
@@ -512,9 +506,7 @@ with tabs[2]:
 
         st.markdown("---")
 
-        # ── Ranked Correlation Table (replaces duplicate heatmap) ──
         st.markdown("#### 🔗 Top Correlations (Ranked)")
-        st.markdown("*Sorted by absolute correlation strength — distinct from the heatmap in the Visualizations tab.*")
         if len(numeric_cols) >= 2:
             corr_matrix = df[numeric_cols].corr()
             corr_pairs  = (
@@ -546,7 +538,6 @@ with tabs[2]:
 
         st.markdown("---")
 
-        # ── Missing Value Heatmap ─────────────────────────────
         st.markdown("#### 🗺️ Missing Value Pattern")
         if df.isnull().sum().sum() > 0:
             fig, ax = plt.subplots(figsize=(12, max(4, len(df.columns) * 0.3)))
@@ -884,7 +875,6 @@ with tabs[6]:
                             st.session_state.cleaned_df.to_excel(
                                 writer, index=False, sheet_name='Cleaned Data'
                             )
-                            # Restore stats sheets dropped in v2.2
                             if st.session_state.stats_results:
                                 for sheet_name, result_df in st.session_state.stats_results.items():
                                     if isinstance(result_df, pd.DataFrame) and not result_df.empty:
@@ -996,18 +986,21 @@ with tabs[7]:
             pred_cols  = st.columns(min(4, len(ml_engine.feature_cols)))
             for i, col in enumerate(ml_engine.feature_cols):
                 with pred_cols[i % len(pred_cols)]:
-                    if df[col].dtype in ['object', 'category']:
-                        options = df[col].dropna().unique().tolist()
-                        input_data[col] = st.selectbox(col, options, key=f"pred_{col}")
+                    if col in df.columns:
+                        if df[col].dtype in ['object', 'category']:
+                            options = df[col].dropna().unique().tolist()
+                            input_data[col] = st.selectbox(col, options, key=f"pred_{col}")
+                        else:
+                            col_min, col_max, col_mean = _safe_col_stats(df[col])
+                            input_data[col] = st.number_input(
+                                col,
+                                value=col_mean,
+                                min_value=col_min,
+                                max_value=col_max,
+                                key=f"pred_{col}"
+                            )
                     else:
-                        col_min, col_max, col_mean = _safe_col_stats(df[col])
-                        input_data[col] = st.number_input(
-                            col,
-                            value=col_mean,
-                            min_value=col_min,
-                            max_value=col_max,
-                            key=f"pred_{col}"
-                        )
+                        input_data[col] = st.number_input(col, value=0.0, key=f"pred_{col}")
 
             if st.button("🔮 Predict", key="predict_btn", type="primary"):
                 try:
