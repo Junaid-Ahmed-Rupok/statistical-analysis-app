@@ -104,7 +104,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 11px !important;
 }
 
-/* Sidebar logo div */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align:center"],
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align: center"] {
     background: transparent !important;
@@ -117,7 +116,6 @@ h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-mono) !important;
 }
 
-/* Sidebar How It Works steps */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="background:rgba"],
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="background: rgba"] {
     background: var(--bg-surface) !important;
@@ -138,7 +136,6 @@ h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-mono) !important;
 }
 
-/* Sidebar trust badges */
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align:center"] div,
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div[style*="text-align: center"] div {
     color: var(--text-muted) !important;
@@ -219,14 +216,12 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-secondary) !important;
 }
 
-/* Quality score number */
 [data-testid="stMarkdownContainer"] div[style*="font-size:48px"],
 [data-testid="stMarkdownContainer"] div[style*="font-size: 48px"] {
     color: var(--em) !important;
     font-family: var(--font-mono) !important;
 }
 
-/* Preprocessing log — green border */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #1E8449"],
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #1E8449"] {
     background: var(--ok-bg) !important;
@@ -240,7 +235,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--ok) !important;
 }
 
-/* Condition number — red */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #C0392B"],
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #C0392B"] {
     background: var(--danger-bg) !important;
@@ -249,7 +243,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 6px !important;
 }
 
-/* Condition number — amber */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #F0A500"],
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #F0A500"] {
     background: var(--warn-bg) !important;
@@ -258,7 +251,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 6px !important;
 }
 
-/* PDF report card */
 [data-testid="stMarkdownContainer"] div[style*="border-left:4px solid #F0A500"] h4,
 [data-testid="stMarkdownContainer"] div[style*="border-left: 4px solid #F0A500"] h4 {
     color: var(--em) !important;
@@ -271,7 +263,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 13px !important;
 }
 
-/* ── AI INSIGHT CARDS ───────────────────────────── */
 [data-testid="stMarkdownContainer"] div[style*="border:2px solid #1E8449"],
 [data-testid="stMarkdownContainer"] div[style*="border: 2px solid #1E8449"] {
     background: var(--ok-bg) !important;
@@ -306,7 +297,6 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 13px !important;
 }
 
-/* ── RECOMMENDATION CARD ────────────────────────── */
 [data-testid="stMarkdownContainer"] div[style*="background:linear-gradient(135deg,#0A2342"],
 [data-testid="stMarkdownContainer"] div[style*="background: linear-gradient(135deg, #0A2342"],
 [data-testid="stMarkdownContainer"] div[style*="background:linear-gradient(135deg, #0A2342"] {
@@ -328,14 +318,12 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-secondary) !important;
 }
 
-/* ── READINESS DONUT ────────────────────────────── */
 [data-testid="stMarkdownContainer"] div[style*="conic-gradient"] > div {
     background: var(--bg-base) !important;
     color: var(--em) !important;
     font-family: var(--font-mono) !important;
 }
 
-/* ── DATAFRAME CELL COLORS ──────────────────────── */
 td[style*="background-color: #D5F5E3"],
 td[style*="background-color:#D5F5E3"] {
     background-color: var(--ok-bg) !important;
@@ -475,7 +463,6 @@ td[style*="background-color:#FADBD8"] {
     font-size: 13px !important;
 }
 
-/* ── FIX: Upload button text doubling ───────────── */
 [data-testid="stFileUploader"] button,
 [data-testid="stFileUploader"] [data-testid="baseButton-secondary"],
 [data-testid="stFileUploader"] [kind="secondary"] {
@@ -541,12 +528,21 @@ td[style*="background-color:#FADBD8"] {
     font-size: 13px !important;
     font-weight: 500 !important;
     color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
 }
 
 .streamlit-expanderHeader *,
 [data-testid="stExpander"] summary * {
     color: #ffffff !important;
     font-family: var(--font-mono) !important;
+}
+
+.streamlit-expanderHeader span,
+[data-testid="stExpander"] summary span {
+    display: inline !important;
+    vertical-align: middle !important;
 }
 
 .streamlit-expanderHeader:hover,
