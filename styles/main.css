@@ -476,7 +476,6 @@ td[style*="background-color:#FADBD8"] {
 }
 
 /* ── FIX: Upload button text doubling ───────────── */
-/* Streamlit injects TWO text nodes inside the button — kill all, re-inject one */
 [data-testid="stFileUploader"] button,
 [data-testid="stFileUploader"] [data-testid="baseButton-secondary"],
 [data-testid="stFileUploader"] [kind="secondary"] {
@@ -510,7 +509,6 @@ td[style*="background-color:#FADBD8"] {
     pointer-events: none !important;
 }
 
-/* Hide every child node inside the upload button */
 [data-testid="stFileUploader"] button *,
 [data-testid="stFileUploader"] [data-testid="baseButton-secondary"] * {
     visibility: hidden !important;
@@ -528,23 +526,6 @@ td[style*="background-color:#FADBD8"] {
     visibility: visible !important;
     width: auto !important;
     height: auto !important;
-}
-
-/* ── FIX: Expander "arrow_right" raw text ────────── */
-/* Streamlit renders icon name as raw text node inside expander header */
-[data-testid="stExpander"] summary,
-[data-testid="stExpander"] details > summary,
-.streamlit-expanderHeader {
-    overflow: hidden !important;
-}
-
-/* Hide the raw icon text (e.g. "_arrow_right") that appears before the label */
-[data-testid="stExpander"] summary > span:first-child,
-[data-testid="stExpander"] summary > div > span:first-child {
-    display: none !important;
-    width: 0 !important;
-    overflow: hidden !important;
-    font-size: 0 !important;
 }
 
 /* ── EXPANDER ───────────────────────────────────── */
@@ -924,114 +905,4 @@ hr {
     [data-testid="stMetricValue"]     { font-size: 20px !important; }
     .stTabs [data-baseweb="tab"]      { padding: 8px 10px !important; font-size: 11px !important; }
     [data-testid="stFileUploader"]    { padding: 20px 14px !important; }
-}
-
-
-/* ═══════════════════════════════════════════════════
-   CRITICAL: Expander header text — ALWAYS VISIBLE
-   Placed last to win all specificity wars.
-   Covers every selector Streamlit uses across versions.
-   ═══════════════════════════════════════════════════ */
-
-/* ── Layer 1: summary element and all direct children ── */
-[data-testid="stExpander"] summary,
-[data-testid="stExpander"] details > summary,
-[data-testid="stExpanderHeader"] {
-    color: #e2f5ee !important;
-    font-family: var(--font-mono) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.2px !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-/* ── Layer 2: every descendant inside the summary ── */
-[data-testid="stExpander"] summary *,
-[data-testid="stExpander"] details > summary *,
-[data-testid="stExpanderHeader"] * {
-    color: #e2f5ee !important;
-    font-family: var(--font-mono) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-/* ── Layer 3: p and span specifically (highest risk of being overridden) ── */
-[data-testid="stExpander"] summary p,
-[data-testid="stExpander"] summary span,
-[data-testid="stExpander"] summary div,
-[data-testid="stExpander"] summary label,
-details > summary p,
-details > summary span,
-details > summary div,
-[data-testid="stExpanderDetails"] summary p,
-[data-testid="stExpanderDetails"] summary span {
-    color: #e2f5ee !important;
-    font-family: var(--font-mono) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: inline !important;
-}
-
-/* ── Layer 4: Streamlit emotion-cache class targeting ── */
-[data-testid="stExpander"] [class*="st-emotion-cache"],
-[data-testid="stExpander"] [class*="st-emotion-cache"] p,
-[data-testid="stExpander"] [class*="st-emotion-cache"] span,
-[data-testid="stExpander"] [class*="st-emotion-cache"] div {
-    color: #e2f5ee !important;
-    font-family: var(--font-mono) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* ── Layer 5: known Streamlit cache class names ── */
-.st-emotion-cache-1h9usn1,
-.st-emotion-cache-sh2krr,
-.st-emotion-cache-1gulkj5,
-.st-emotion-cache-r421ms,
-.st-emotion-cache-10trblm {
-    color: #e2f5ee !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    font-size: 13px !important;
-    font-family: var(--font-mono) !important;
-    font-weight: 600 !important;
-}
-
-/* ── Hover: emerald glow on hover ── */
-[data-testid="stExpander"] summary:hover,
-[data-testid="stExpander"] summary:hover *,
-[data-testid="stExpander"] details > summary:hover,
-[data-testid="stExpander"] details > summary:hover * {
-    color: var(--em) !important;
-    border-left-color: var(--em) !important;
-}
-
-/* ── Open/active state: full emerald ── */
-[data-testid="stExpander"][open] summary,
-[data-testid="stExpander"][open] summary *,
-details[open] > summary,
-details[open] > summary * {
-    color: var(--em) !important;
-    border-left-color: var(--em) !important;
-    background: var(--bg-active) !important;
-}
-
-/* ── FIX: Upload button text doubling ── */
-/* Keep "Upload" showing only once */
-[data-testid="stFileUploaderDropzone"] button span:first-child {
-    display: none !important;
-}
-[data-testid="stFileUploaderDropzone"] button::before {
-    content: "Upload" !important;
-    font-family: var(--font-mono) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: var(--em) !important;
 }
