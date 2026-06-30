@@ -986,19 +986,28 @@ with tabs[7]:
             pred_cols  = st.columns(min(4, len(ml_engine.feature_cols)))
             for i, col in enumerate(ml_engine.feature_cols):
                 with pred_cols[i % len(pred_cols)]:
-                    if col in df.columns:
-                        if col in df_orig.columns and df_orig[col].dtype in ['object', 'category']:
-                            options = df_orig[col].dropna().unique().tolist()
-                            input_data[col] = st.selectbox(col, options, key=f"pred_{col}")
-                        else:
-                            col_min, col_max, col_mean = _safe_col_stats(df[col])
-                            input_data[col] = st.number_input(
-                                col,
-                                value=col_mean,
-                                min_value=col_min,
-                                max_value=col_max,
-                                key=f"pred_{col}"
-                            )
+                    # Use the ML engine's own record of which columns are
+                    # categorical and what their original labels are.
+                    # This correctly handles:
+                    #   - object/category columns from the raw data
+                    #   - mixed-type columns reclassified as categorical
+                    #   - avoids showing encoded integers (0, 1) to the user
+                    cat_options = ml_engine.get_categorical_options(col)
+                    if cat_options is not None:
+                        input_data[col] = st.selectbox(
+                            col,
+                            options=cat_options,
+                            key=f"pred_{col}"
+                        )
+                    elif col in df.columns:
+                        col_min, col_max, col_mean = _safe_col_stats(df[col])
+                        input_data[col] = st.number_input(
+                            col,
+                            value=col_mean,
+                            min_value=col_min,
+                            max_value=col_max,
+                            key=f"pred_{col}"
+                        )
                     else:
                         input_data[col] = st.number_input(col, value=0.0, key=f"pred_{col}")
 
