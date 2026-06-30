@@ -14,7 +14,7 @@ from sklearn.ensemble import (
 )
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import (
-    accuracy_score, f1_score, mean_absolute_error,
+    accuracy_score, confusion_matrix, f1_score, mean_absolute_error,
     mean_squared_error, precision_score, r2_score, recall_score,
 )
 from sklearn.model_selection import (
@@ -55,33 +55,61 @@ class MLEngine:
         self.best_model_name: str | None = None
         self.feature_importance: pd.DataFrame | None = None
         self.label_encoders: dict[str, LabelEncoder] = {}
+        # Maps col -> list of original string labels (in label-encoded order).
+        # Only populated for columns that are categorical (object/category or
+        # reclassified mixed-type). Used by the UI to show human-readable
+        # choices instead of raw integer codes.
+        self.categorical_labels: dict[str, list[str]] = {}
         self.confusion_matrices: dict[str, np.ndarray] = {}
         self._reclassified_cols: set[str] = set()
+
+    # ── Task detection ────────────────────────────────────────────────────────
 
     def detect_task(self, df: pd.DataFrame, target: str) -> str:
         col = df[target].dropna()
         dtype = col.dtype
+
+        # Unambiguously categorical dtypes
         if dtype == "bool" or hasattr(dtype, "categories"):
             return "classification"
         if dtype == "object":
             return "classification"
-        if col.nunique() <= 15:
+
+        # Numeric columns: only apply cardinality heuristics when the ratio of
+        # unique values is truly low, to avoid misclassifying continuous
+        # columns that happen to have few distinct values in a small sample.
+        n = len(col)
+        n_unique = col.nunique()
+
+        # Hard ceiling: if there are ≤ 10 unique numeric values treat as
+        # classification (e.g. ratings 1-5, binary 0/1).
+        if n_unique <= 10:
             return "classification"
-        if col.nunique() / len(col) < 0.05:
+
+        # Ratio heuristic only for reasonably-sized datasets and a tight
+        # threshold, to avoid false positives on large continuous columns.
+        if n >= 200 and (n_unique / n) < 0.02:
             return "classification"
+
         return "regression"
 
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
     def _impute(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fill NaNs: mode for categoricals, median for numerics."""
         df = df.copy()
         for col in df.columns:
             if df[col].isna().any():
                 if df[col].dtype in ["object", "category"]:
-                    df[col].fillna(df[col].mode().iloc[0], inplace=True)
+                    fill_val = df[col].mode()
+                    df[col] = df[col].fillna(fill_val.iloc[0] if not fill_val.empty else "Unknown")
                 else:
-                    df[col].fillna(df[col].median(), inplace=True)
+                    df[col] = df[col].fillna(df[col].median())
         return df
 
     def _resolve_mixed_type_columns(self, df: pd.DataFrame, *, training: bool) -> pd.DataFrame:
+        """Detect columns that contain non-numeric values mixed with numbers
+        and reclassify them as strings so they are encoded consistently."""
         df = df.copy()
         if training:
             self._reclassified_cols = set()
@@ -106,6 +134,11 @@ class MLEngine:
         return df
 
     def _encode_inference_df(self, input_df: pd.DataFrame) -> np.ndarray:
+        """Encode a user-supplied prediction DataFrame using fitted encoders.
+
+        Accepts *original* (human-readable) string values for categorical
+        columns — the caller does NOT need to pre-encode anything.
+        """
         if self.best_pipeline is None:
             raise RuntimeError("No trained model available. Call .run() first.")
 
@@ -126,7 +159,7 @@ class MLEngine:
                     unknown = raw[~known].unique().tolist()
                     warnings.warn(
                         f"Column '{col}' contains values unseen during training: "
-                        f"{unknown}. Encoding as the most frequent training class.",
+                        f"{unknown}. Falling back to the most frequent training class.",
                         UserWarning, stacklevel=3,
                     )
                     raw = raw.where(known, le.classes_[0])
@@ -140,6 +173,8 @@ class MLEngine:
 
         return df_clean.values.astype(float)
 
+    # ── Data preparation ──────────────────────────────────────────────────────
+
     def prepare_data(self, df: pd.DataFrame, target: str) -> tuple[np.ndarray, np.ndarray]:
         self.target_col = target
         self.feature_cols = [c for c in df.columns if c != target]
@@ -148,47 +183,68 @@ class MLEngine:
         df_clean = self._resolve_mixed_type_columns(df_clean, training=True)
         df_clean = self._impute(df_clean)
 
-        if self.task == "classification" and df_clean[target].dtype == "object":
+        # Encode the target column for classification.
+        # Guard against any non-numeric dtype (object, StringDtype, category, bool).
+        if self.task == "classification" and not pd.api.types.is_integer_dtype(df_clean[target]):
             le = LabelEncoder()
-            df_clean[target] = le.fit_transform(df_clean[target].astype(str))
+            df_clean[target] = le.fit_transform(df_clean[target].astype(str)).astype(int)
             self.label_encoders[target] = le
+        elif self.task == "classification":
+            # Already integer-coded; ensure plain Python int dtype for XGBoost/CatBoost
+            df_clean[target] = df_clean[target].astype(int)
 
-        # First pass: encode known object/category columns
+        # First pass: encode known object/category feature columns
         for col in self.feature_cols:
             if df_clean[col].dtype in ["object", "category", "string"]:
                 le = LabelEncoder()
-                df_clean[col] = le.fit_transform(df_clean[col].astype(str))
+                le.fit(df_clean[col].astype(str))
+                # Store the human-readable labels BEFORE transforming
+                self.categorical_labels[col] = list(le.classes_)
+                df_clean[col] = le.transform(df_clean[col].astype(str))
                 self.label_encoders[col] = le
 
-        # Second pass: catch any column still not numeric (safety net)
+        # Second pass: safety net for any remaining non-numeric columns
         for col in self.feature_cols:
             if col not in self.label_encoders and not pd.api.types.is_numeric_dtype(df_clean[col]):
                 le = LabelEncoder()
-                df_clean[col] = le.fit_transform(df_clean[col].astype(str))
+                le.fit(df_clean[col].astype(str))
+                self.categorical_labels[col] = list(le.classes_)
+                df_clean[col] = le.transform(df_clean[col].astype(str))
                 self.label_encoders[col] = le
+
+        # Reclassified mixed-type columns were cast to str before encoding,
+        # so they are already captured in the passes above via label_encoders.
+        # Ensure their labels are also reflected in categorical_labels.
+        for col in self._reclassified_cols:
+            if col in self.label_encoders and col not in self.categorical_labels:
+                self.categorical_labels[col] = list(self.label_encoders[col].classes_)
 
         X = df_clean[self.feature_cols].values.astype(float)
         y = df_clean[target].values
         return X, y
 
+    # ── Model building ────────────────────────────────────────────────────────
+
     def _build_models(self) -> dict:
         if self.task == "regression":
             return {
-                "Linear Regression": LinearRegression(),
-                "Decision Tree": DecisionTreeRegressor(max_depth=10, random_state=42),
-                "Random Forest": RandomForestRegressor(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1),
-                "XGBoost": XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, verbosity=0),
-                "CatBoost": CatBoostRegressor(n_estimators=100, depth=6, learning_rate=0.1, random_seed=42, verbose=0),
-                "AdaBoost": AdaBoostRegressor(n_estimators=100, random_state=42),
+                "Linear Regression":  LinearRegression(),
+                "Decision Tree":      DecisionTreeRegressor(max_depth=10, random_state=42),
+                "Random Forest":      RandomForestRegressor(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1),
+                "XGBoost":            XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, verbosity=0),
+                "CatBoost":           CatBoostRegressor(n_estimators=100, depth=6, learning_rate=0.1, random_seed=42, verbose=0),
+                "AdaBoost":           AdaBoostRegressor(n_estimators=100, random_state=42),
             }
         return {
             "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
-            "Decision Tree": DecisionTreeClassifier(max_depth=10, random_state=42),
-            "Random Forest": RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1),
-            "XGBoost": XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, verbosity=0, eval_metric="logloss"),
-            "CatBoost": CatBoostClassifier(n_estimators=100, depth=6, learning_rate=0.1, random_seed=42, verbose=0),
-            "AdaBoost": AdaBoostClassifier(n_estimators=100, random_state=42, algorithm="SAMME"),
+            "Decision Tree":       DecisionTreeClassifier(max_depth=10, random_state=42),
+            "Random Forest":       RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1),
+            "XGBoost":             XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, verbosity=0, eval_metric="logloss"),
+            "CatBoost":            CatBoostClassifier(n_estimators=100, depth=6, learning_rate=0.1, random_seed=42, verbose=0),
+            "AdaBoost":            AdaBoostClassifier(n_estimators=100, random_state=42),
         }
+
+    # ── Training ──────────────────────────────────────────────────────────────
 
     def run(self, df: pd.DataFrame, target: str) -> pd.DataFrame:
         self._reset()
@@ -215,6 +271,7 @@ class MLEngine:
             try:
                 row = self._train_and_evaluate(name, pipe, X_train, X_test, y_train, y_test, cv)
             except Exception as exc:
+                logger.exception("Model '%s' failed during training.", name)
                 row = {"Model": name, "Error": str(exc)}
             results.append(row)
 
@@ -229,33 +286,36 @@ class MLEngine:
             pipe.fit(X_train, y_train)
             y_pred = pipe.predict(X_test)
             return {
-                "Model": name,
-                "CV R² (mean)": round(float(cv_scores.mean()), 4),
-                "CV R² (std)": round(float(cv_scores.std()), 4),
-                "Test R²": round(float(r2_score(y_test, y_pred)), 4),
-                "Test RMSE": round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4),
-                "Test MAE": round(float(mean_absolute_error(y_test, y_pred)), 4),
+                "Model":          name,
+                "CV R² (mean)":   round(float(cv_scores.mean()), 4),
+                "CV R² (std)":    round(float(cv_scores.std()), 4),
+                "Test R²":        round(float(r2_score(y_test, y_pred)), 4),
+                "Test RMSE":      round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4),
+                "Test MAE":       round(float(mean_absolute_error(y_test, y_pred)), 4),
             }
         else:
             cv_scores = cross_val_score(pipe, X_train, y_train, cv=cv, scoring="accuracy")
             pipe.fit(X_train, y_train)
             y_pred = pipe.predict(X_test)
-            self.confusion_matrices[name] = pd.crosstab(y_test, y_pred, rownames=["Actual"], colnames=["Predicted"])
+            # Store a proper sklearn confusion matrix (ndarray), not a crosstab
+            self.confusion_matrices[name] = confusion_matrix(y_test, y_pred)
             return {
-                "Model": name,
-                "CV Accuracy (mean)": round(float(cv_scores.mean()), 4),
-                "CV Accuracy (std)": round(float(cv_scores.std()), 4),
-                "Test Accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
-                "Test Precision": round(float(precision_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
-                "Test Recall": round(float(recall_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
-                "Test F1": round(float(f1_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+                "Model":                name,
+                "CV Accuracy (mean)":   round(float(cv_scores.mean()), 4),
+                "CV Accuracy (std)":    round(float(cv_scores.std()), 4),
+                "Test Accuracy":        round(float(accuracy_score(y_test, y_pred)), 4),
+                "Test Precision":       round(float(precision_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+                "Test Recall":          round(float(recall_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
+                "Test F1":              round(float(f1_score(y_test, y_pred, average="weighted", zero_division=0)), 4),
             }
+
+    # ── Model selection & feature importance ──────────────────────────────────
 
     def _select_best_model(self):
         metric = "Test R²" if self.task == "regression" else "Test F1"
         valid = self.results.dropna(subset=[metric])
         if valid.empty:
-            raise RuntimeError("All models failed.")
+            raise RuntimeError("All models failed during training.")
         best_idx = valid[metric].idxmax()
         self.best_model_name = self.results.loc[best_idx, "Model"]
         self.best_pipeline = self.pipelines[self.best_model_name]
@@ -277,7 +337,11 @@ class MLEngine:
             .reset_index(drop=True)
         )
 
+    # ── Inference ─────────────────────────────────────────────────────────────
+
     def predict(self, input_df: pd.DataFrame) -> np.ndarray:
+        """Return predictions in the original label space (strings for
+        classification when the target was encoded)."""
         X = self._encode_inference_df(input_df)
         preds = self.best_pipeline.predict(X)
         if self.task == "classification" and self.target_col in self.label_encoders:
@@ -285,12 +349,33 @@ class MLEngine:
         return preds
 
     def predict_proba(self, input_df: pd.DataFrame) -> np.ndarray:
+        """Return class probabilities. Raises for regression or models that
+        do not expose predict_proba (checked on the inner model, not the
+        Pipeline wrapper, which always proxies the attribute)."""
         if self.task != "classification":
             raise RuntimeError("predict_proba is only available for classification tasks.")
-        if not hasattr(self.best_pipeline, "predict_proba"):
+        # Check the INNER model, not the Pipeline (Pipeline always has the
+        # attribute as long as the final estimator does).
+        inner_model = self.best_pipeline.named_steps["model"]
+        if not hasattr(inner_model, "predict_proba"):
             raise RuntimeError(f"{self.best_model_name} does not support probability estimates.")
         X = self._encode_inference_df(input_df)
         return self.best_pipeline.predict_proba(X)
+
+    def get_categorical_options(self, col: str) -> list[str] | None:
+        """Return the original string labels for a categorical feature column,
+        or None if the column is numeric.
+
+        Use this in the prediction UI so that selectboxes show human-readable
+        values (e.g. 'good', 'bad') instead of their integer codes (0, 1).
+        """
+        return self.categorical_labels.get(col, None)
+
+    def is_categorical_feature(self, col: str) -> bool:
+        """True when *col* was encoded as categorical during training."""
+        return col in self.categorical_labels
+
+    # ── Persistence ───────────────────────────────────────────────────────────
 
     def save(self, path: str):
         joblib.dump(self, path)
