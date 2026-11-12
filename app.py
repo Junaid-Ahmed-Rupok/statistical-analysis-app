@@ -301,7 +301,7 @@ with tabs[0]:
 
             st.markdown("---")
             st.markdown("### Data Preview")
-            st.dataframe(df.head(100), use_container_width=True)
+            st.dataframe(df.head(100), width="stretch")
 
             st.markdown("### Missing Values Analysis")
             if not overview['missing_table'].empty:
@@ -309,7 +309,7 @@ with tabs[0]:
                     overview['missing_table'].style.map(
                         _color_missing, subset=['Missing Percentage']
                     ),
-                    use_container_width=True
+                    width="stretch"
                 )
             else:
                 st.success("✅ No missing values detected.")
@@ -459,7 +459,7 @@ with tabs[2]:
                     'Top Freq':  top_freq,
                 })
 
-        st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
+        st.dataframe(pd.DataFrame(summary_data), width="stretch")
         st.markdown("---")
 
         st.markdown("#### 📈 Numeric Column Distributions")
@@ -530,7 +530,7 @@ with tabs[2]:
 
             st.dataframe(
                 corr_pairs.style.map(_color_corr, subset=['Pearson r']),
-                use_container_width=True
+                width="stretch"
             )
         else:
             st.info("Need at least 2 numeric columns for correlation analysis.")
@@ -579,7 +579,7 @@ with tabs[3]:
                     styled = norm.style.map(_green, subset=['Normal'])
                     if 'Sig. after FDR' in norm.columns:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                    st.dataframe(styled, use_container_width=True)
+                    st.dataframe(styled, width="stretch")
 
             with st.expander("🔗 Correlation Analysis — Pearson & Spearman with Effect Sizes & FDR", expanded=True):
                 corr_col_name = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
@@ -598,7 +598,7 @@ with tabs[3]:
                                 styled = styled.map(_color_effect, subset=['Effect Size'])
                             if 'Sig. after FDR' in top.columns:
                                 styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                            st.dataframe(styled, use_container_width=True)
+                            st.dataframe(styled, width="stretch")
 
             for name, key, extra_cols in [
                 ("📐 Chi-Square Independence Test + Cramér's V Effect Size", 'chi_square',   ['Effect Size']),
@@ -614,7 +614,7 @@ with tabs[3]:
                         for ec in extra_cols:
                             if ec in df_test.columns:
                                 styled = styled.map(_color_effect, subset=[ec])
-                        st.dataframe(styled, use_container_width=True)
+                        st.dataframe(styled, width="stretch")
 
             vif = sr.get('vif', pd.DataFrame())
             if not vif.empty:
@@ -626,7 +626,7 @@ with tabs[3]:
                                        'color:#F0A500'                  if v == 'Moderate' else
                                        'color:#1E8449'),
                             subset=['κ Risk'])
-                    st.dataframe(styled, use_container_width=True)
+                    st.dataframe(styled, width="stretch")
                     if 'Condition Number (κ)' in vif.columns:
                         kappa  = vif['Condition Number (κ)'].iloc[0]
                         k_risk = vif['κ Risk'].iloc[0]
@@ -654,7 +654,7 @@ with tabs[3]:
                     styled = reg_df.style.map(_green, subset=[sig_c])
                     if 'Sig. after FDR' in reg_df.columns:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                    st.dataframe(styled, use_container_width=True)
+                    st.dataframe(styled, width="stretch")
     else:
         st.info("Please preprocess your data in the 'Preprocessing' tab first.")
 
@@ -964,7 +964,7 @@ with tabs[7]:
                 if 'Error' not in results.columns
                 else results
             )
-            st.dataframe(styled_results, use_container_width=True)
+            st.dataframe(styled_results, width="stretch")
 
             if ml_engine.feature_importance is not None:
                 st.markdown("#### 📈 Feature Importance")
