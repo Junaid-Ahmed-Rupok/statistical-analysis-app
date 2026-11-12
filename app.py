@@ -238,6 +238,7 @@ tabs = st.tabs([
     "💡 AI Insights",
     "📄 PDF Report",
     "🤖 ML Studio",
+    "👨‍💻 About",
 ])
 
 # ════════════════════════════════════════════════════════════════
@@ -1137,6 +1138,50 @@ with tabs[7]:
                        "Only load model files you created yourself.")
     else:
         st.info("Please preprocess your data first in the 'Preprocessing' tab.")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 9 — About the developer
+# ════════════════════════════════════════════════════════════════
+with tabs[8]:
+    st.markdown("### 👨‍💻 About the Developer")
+    st.markdown("""
+    <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;">
+        <div style="color:#34D399;font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;">
+            Sarder Junaid Ahmed
+        </div>
+        <div style="color:#aaa;font-family:'JetBrains Mono',monospace;font-size:14px;margin:6px 0 18px;">
+            Research Assistant, CAIR — Southeast University, Dhaka &nbsp;·&nbsp; Dhaka, Bangladesh
+        </div>
+        <p style="color:#ddd;line-height:1.7;">
+            B.Sc. in Computer Science &amp; Engineering from RUET (2025). I work on causal machine
+            learning and trustworthy AI — fairness, uncertainty quantification and reproducible
+            research. StatsPro grew out of the belief that rigorous statistics should be
+            accessible to anyone with a CSV file.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("#### 🔬 Research interests")
+        st.markdown("- Causal machine learning\n- Trustworthy AI and fairness\n"
+                    "- Uncertainty quantification\n- Reproducible research")
+    with c2:
+        st.markdown("#### 🛠️ Other projects")
+        st.markdown("- **A-ICF** — Amortized Invariant Causal Fairness for clinical ML\n"
+                    "- **DeepEnMap** — energy poverty risk mapping with deep learning\n"
+                    "- **ReproHub** — verifies published statistical claims against raw data\n"
+                    "- **Smart RAG Chatbot** — cited retrieval-augmented QA")
+
+    st.markdown("#### 🔗 Connect")
+    l1, l2, l3, l4 = st.columns(4)
+    l1.link_button("GitHub", "https://github.com/Junaid-Ahmed-Rupok", width="stretch")
+    l2.link_button("LinkedIn", "https://www.linkedin.com/in/sarder-junaid-ahmed-059b68240/", width="stretch")
+    l3.link_button("Portfolio", "https://junaid-ahmed-rupok.github.io/My-World/", width="stretch")
+    l4.link_button("Email", "mailto:junaidahmedrupok@gmail.com", width="stretch")
+
+    st.caption("Found a bug or have a suggestion? Open an issue on the "
+               "[StatsPro repository](https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app/issues).")
 
 # ── Footer ───────────────────────────────────────────────────────
 st.markdown("---")
