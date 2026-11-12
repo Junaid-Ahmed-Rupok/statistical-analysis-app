@@ -29,7 +29,7 @@ st.set_page_config(
 def load_css():
     css_file = Path(__file__).parent / "styles" / "main.css"
     if css_file.exists():
-        with open(css_file) as f:
+        with open(css_file, encoding="utf-8") as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 load_css()
@@ -255,7 +255,10 @@ with tabs[0]:
 
     st.markdown("**No data? Try our sample dataset:**")
     if st.button("📊 Load Sample Dataset (Restaurant Tips)", type="secondary"):
-        sample_df = sns.load_dataset('tips')
+        # Bundled copy: works offline and behind firewalls (seaborn's loader downloads from GitHub).
+        sample_df = pd.read_csv(Path(__file__).parent / "data" / "tips.csv")
+        for _c in ('sex', 'smoker', 'day', 'time'):
+            sample_df[_c] = sample_df[_c].astype('category')
         sample_df['tip_percentage'] = (sample_df['tip'] / sample_df['total_bill']) * 100
         sample_df['is_weekend'] = sample_df['day'].isin(['Sat', 'Sun']).astype(int)
         sample_df['party_size_category'] = pd.cut(
@@ -286,7 +289,11 @@ with tabs[0]:
 
         try:
             if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file)
+                try:
+                    df = pd.read_csv(uploaded_file)
+                except UnicodeDecodeError:
+                    uploaded_file.seek(0)  # Excel on Windows often saves CSVs as cp1252
+                    df = pd.read_csv(uploaded_file, encoding="latin-1")
                 st.session_state.uploaded_df = df
                 st.session_state.overview = preprocessor.get_overview(df)
 

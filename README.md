@@ -5,8 +5,8 @@
 **AI-Powered Statistical Analysis Platform**
 
 [![Version](https://img.shields.io/badge/version-2.3-34D399?style=flat-square)](https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app)
-[![Python](https://img.shields.io/badge/python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/streamlit-1.57-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/streamlit-1.67-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![License](https://img.shields.io/badge/license-MIT-22C55E?style=flat-square)](LICENSE)
 
 Turn raw CSV data into professional statistical reports — no code required.
@@ -95,14 +95,30 @@ Ten tests, all with **Benjamini-Hochberg FDR correction** to control false posit
 ## Quickstart
 
 ### Prerequisites
-- Python 3.9+
-- pip
+- Python **3.11 or newer** (check with `python --version`) — or just Docker
 
-### Installation
+### Run it (pick one)
+
+**Any machine with Docker** (no Python needed):
 
 ```bash
 git clone https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app.git
 cd statistical-analysis-app
+docker build -t statspro .
+docker run -p 8501:8501 statspro
+```
+
+**macOS / Linux:** `./run.sh`  **Windows:** double-click `run.bat`
+
+Both create a private `.venv`, install dependencies and start the app.
+
+**Manual:**
+
+```bash
+git clone https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app.git
+cd statistical-analysis-app
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate    Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
