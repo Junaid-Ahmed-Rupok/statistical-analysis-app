@@ -1,0 +1,38 @@
+name: Keep StatsPro awake
+
+on:
+  schedule:
+    # Every 4 hours (Streamlit sleeps after ~12h idle). Odd minute on purpose:
+    # GitHub delays jobs scheduled exactly on the hour.
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+  push:
+    # Run once whenever the keep-alive itself changes, so a bad edit shows up immediately.
+    paths:
+      - keepalive.py
+      - .github/workflows/keepalive.yml
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Visit the app
+        env:
+          # The URL is public (it is in the README). A repo secret named APP_URL, if set, takes priority.
+          APP_URL: ${{ secrets.APP_URL || 'https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app/' }}
+        run: python keepalive.py
