@@ -897,7 +897,7 @@ with tabs[6]:
 # ════════════════════════════════════════════════════════════════
 with tabs[7]:
     st.markdown("### 🤖 Machine Learning Studio")
-    st.markdown("*Auto-detects task · Trains 6 models · 5-fold CV · Live predictions*")
+    st.markdown("*Auto-detects task · 6 models · 5-fold CV · Permutation importance · Live predictions*")
 
     if st.session_state.cleaned_df is not None:
         df = st.session_state.cleaned_df
@@ -905,10 +905,13 @@ with tabs[7]:
 
         col_t1, col_t2 = st.columns([1, 2])
         with col_t1:
-            target_col = st.selectbox("🎯 Select target column to predict:", df.columns.tolist())
+            target_col = st.selectbox("🎯 Select target column to predict:", df.columns.tolist(), key="ml_target_sel")
+            task_choice = st.radio("Task type", ["Auto", "Regression", "Classification"],
+                                   horizontal=True, key="ml_task_choice")
 
         if target_col:
-            task  = ml_engine.detect_task(df, target_col)
+            auto_task = ml_engine.detect_task(df, target_col)
+            task = auto_task if task_choice == "Auto" else task_choice.lower()
             emoji = "📈" if task == "regression" else "🏷️"
             with col_t2:
                 st.markdown(f"""
@@ -917,7 +920,7 @@ with tabs[7]:
                     <span style="font-family:'JetBrains Mono',monospace;font-size:24px;">{emoji}</span>
                     <span style="color:#34D399;font-family:'JetBrains Mono',monospace;
                         font-size:16px;font-weight:600;margin-left:10px;">
-                        Task: {task.title()}
+                        Task: {task.title()}{' (auto-detected)' if task_choice == 'Auto' else ' (manual)'}
                     </span>
                     <span style="color:#777;font-family:'JetBrains Mono',monospace;
                         font-size:12px;margin-left:12px;">
@@ -926,32 +929,55 @@ with tabs[7]:
                 </div>
                 """, unsafe_allow_html=True)
 
+            sug = ml_engine.suggest_features(df, target_col)
+            all_feats = [c for c in df.columns if c != target_col]
+            for w in sug["warnings"]:
+                st.warning(f"⚠️ {w}")
+            if sug["excluded"]:
+                st.info("Excluded by default: " + "; ".join(
+                    f"**{c}** ({r})" for c, r in sug["excluded"].items()))
+            sel_key = f"ml_features_{target_col}"
+            features = st.multiselect("🧩 Feature columns", all_feats,
+                                      default=sug["features"], key=sel_key)
+
         st.markdown("---")
 
         if st.button("🚀 Train All Models", key="ml_train_btn", type="primary"):
-            with st.spinner("Training 6 models with 5-fold CV..."):
-                try:
-                    results = ml_engine.run(df, target_col)
-                    st.session_state.ml_results    = results
-                    st.session_state.ml_target     = target_col
-                    st.session_state.ml_best_model = ml_engine.best_model_name
-                except Exception as e:
-                    st.error(f"Training failed: {e}")
+            bar = st.progress(0.0, text="Starting…")
+            def _cb(done, total, name):
+                bar.progress(done / total, text=f"Trained {name} ({done}/{total})")
+            try:
+                results = ml_engine.run(df, target_col, task=task, features=features,
+                                        progress_callback=_cb)
+                st.session_state.ml_results    = results
+                st.session_state.ml_target     = target_col
+                st.session_state.ml_best_model = ml_engine.best_model_name
+            except Exception as e:
+                st.session_state.ml_results = None
+                st.error(f"Training failed: {e}")
+            finally:
+                bar.empty()
 
-        if st.session_state.ml_results is not None:
+        if st.session_state.ml_results is not None and ml_engine.best_pipeline is not None:
             results = st.session_state.ml_results
+            is_clf = ml_engine.task == "classification"
+
+            for n in ml_engine.notes:
+                st.warning(f"ℹ️ {n}")
 
             st.markdown(f"""
             <div style="background:#0a2a1a;border:1px solid #34D399;border-radius:10px;
                 padding:20px;margin:16px 0;">
                 <span style="color:#34D399;font-family:'JetBrains Mono',monospace;
-                    font-size:13px;">🏆 Best Model:</span>
+                    font-size:13px;">🏆 Best Model (by {ml_engine.selection_metric}):</span>
                 <span style="color:#fff;font-family:'JetBrains Mono',monospace;
                     font-size:18px;font-weight:700;margin-left:8px;">
                     {ml_engine.best_model_name}
                 </span>
             </div>
             """, unsafe_allow_html=True)
+            st.caption("The best model is chosen by cross-validation on the training data, "
+                       "so the 'Test' columns are an honest, untouched final check.")
 
             st.markdown("#### 📊 Model Comparison")
             def highlight_best(row):
@@ -970,12 +996,49 @@ with tabs[7]:
                 st.markdown("#### 📈 Feature Importance")
                 fig, ax = plt.subplots(figsize=(8, 4))
                 fi = ml_engine.feature_importance.head(15)
-                ax.barh(fi['Feature'][::-1], fi['Importance'][::-1], color='#34D399')
+                ax.barh(fi['Feature'][::-1], fi['Importance'][::-1],
+                        xerr=fi['Std'][::-1], color='#34D399')
                 ax.set_xlabel('Importance')
-                ax.set_title(f'Feature Importance — {ml_engine.best_model_name}',
-                             fontweight='bold')
+                ax.set_title(f'Feature Importance — {ml_engine.best_model_name}', fontweight='bold')
                 st.pyplot(fig)
                 plt.close(fig)
+                st.caption(ml_engine.importance_method)
+
+            # ── Holdout diagnostics ──────────────────────────
+            if ml_engine.holdout is not None:
+                yt, yp = ml_engine.holdout["y_true"], ml_engine.holdout["y_pred"]
+                st.markdown("#### 🔍 Holdout Diagnostics")
+                if is_clf:
+                    cm = ml_engine.confusion_matrices.get(ml_engine.best_model_name)
+                    if cm is not None:
+                        labels = ml_engine.class_labels
+                        k = len(labels)
+                        fig, ax = plt.subplots(figsize=(max(4, 0.7 * k + 3), max(3.5, 0.6 * k + 2.5)))
+                        im = ax.imshow(cm, cmap="Greens")
+                        ax.set_xticks(range(k)); ax.set_yticks(range(k))
+                        ax.set_xticklabels(labels, rotation=45, ha="right"); ax.set_yticklabels(labels)
+                        for i in range(k):
+                            for j in range(k):
+                                ax.text(j, i, int(cm[i, j]), ha="center", va="center",
+                                        color="white" if cm[i, j] > cm.max() / 2 else "black")
+                        ax.set_xlabel("Predicted"); ax.set_ylabel("Actual")
+                        ax.set_title("Confusion Matrix (holdout)", fontweight="bold")
+                        fig.tight_layout()
+                        st.pyplot(fig); plt.close(fig)
+                else:
+                    resid = yt - yp
+                    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+                    axes[0].scatter(yt, yp, alpha=0.6, color="#34D399", s=18)
+                    lo, hi = float(min(yt.min(), yp.min())), float(max(yt.max(), yp.max()))
+                    axes[0].plot([lo, hi], [lo, hi], "--", color="#999")
+                    axes[0].set_xlabel("Actual"); axes[0].set_ylabel("Predicted")
+                    axes[0].set_title("Actual vs Predicted", fontweight="bold")
+                    axes[1].scatter(yp, resid, alpha=0.6, color="#34D399", s=18)
+                    axes[1].axhline(0, ls="--", color="#999")
+                    axes[1].set_xlabel("Predicted"); axes[1].set_ylabel("Residual")
+                    axes[1].set_title("Residuals", fontweight="bold")
+                    fig.tight_layout()
+                    st.pyplot(fig); plt.close(fig)
 
             # ── Live Prediction ───────────────────────────────
             st.markdown("---")
@@ -986,28 +1049,14 @@ with tabs[7]:
             pred_cols  = st.columns(min(4, len(ml_engine.feature_cols)))
             for i, col in enumerate(ml_engine.feature_cols):
                 with pred_cols[i % len(pred_cols)]:
-                    # Use the ML engine's own record of which columns are
-                    # categorical and what their original labels are.
-                    # This correctly handles:
-                    #   - object/category columns from the raw data
-                    #   - mixed-type columns reclassified as categorical
-                    #   - avoids showing encoded integers (0, 1) to the user
                     cat_options = ml_engine.get_categorical_options(col)
                     if cat_options is not None:
-                        input_data[col] = st.selectbox(
-                            col,
-                            options=cat_options,
-                            key=f"pred_{col}"
-                        )
+                        input_data[col] = st.selectbox(col, options=cat_options, key=f"pred_{col}")
                     elif col in df.columns:
                         col_min, col_max, col_mean = _safe_col_stats(df[col])
                         input_data[col] = st.number_input(
-                            col,
-                            value=col_mean,
-                            min_value=col_min,
-                            max_value=col_max,
-                            key=f"pred_{col}"
-                        )
+                            col, value=col_mean, min_value=col_min, max_value=col_max,
+                            key=f"pred_{col}")
                     else:
                         input_data[col] = st.number_input(col, value=0.0, key=f"pred_{col}")
 
@@ -1015,6 +1064,11 @@ with tabs[7]:
                 try:
                     input_df   = pd.DataFrame([input_data])
                     prediction = ml_engine.predict(input_df)[0]
+                    if not is_clf and ml_engine.results is not None:
+                        rmse_row = ml_engine.results.loc[
+                            ml_engine.results["Model"] == ml_engine.best_model_name, "Test RMSE"]
+                        if len(rmse_row):
+                            prediction = f"{float(prediction):,.3f} (± {float(rmse_row.iloc[0]):,.3f} typical error)"
                     st.markdown(f"""
                     <div style="background:#0a2a1a;border:1px solid #34D399;border-radius:10px;
                         padding:20px;margin:16px 0;text-align:center;">
@@ -1026,6 +1080,14 @@ with tabs[7]:
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
+                    if is_clf:
+                        try:
+                            proba = ml_engine.predict_proba(input_df)[0]
+                            pdf_ = pd.DataFrame({"Class": ml_engine.class_labels, "Probability": proba})
+                            pdf_ = pdf_.sort_values("Probability", ascending=False).head(8)
+                            st.bar_chart(pdf_.set_index("Class"))
+                        except Exception:
+                            pass
                 except Exception as e:
                     st.error(f"Prediction failed: {e}")
     else:
