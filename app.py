@@ -1090,6 +1090,44 @@ with tabs[7]:
                             pass
                 except Exception as e:
                     st.error(f"Prediction failed: {e}")
+
+            # ── Batch prediction & model export ───────────────
+            st.markdown("---")
+            st.markdown("#### 📂 Batch Prediction")
+            st.caption("Upload a CSV with these columns: " + ", ".join(ml_engine.feature_cols))
+            up = st.file_uploader("CSV file", type=["csv"], key="ml_batch_upload")
+            if up is not None:
+                try:
+                    new_df = pd.read_csv(up)
+                    missing = [c for c in ml_engine.feature_cols if c not in new_df.columns]
+                    if missing:
+                        st.error(f"Missing columns: {missing}")
+                    elif len(new_df) > 50000:
+                        st.error("Please upload at most 50,000 rows.")
+                    else:
+                        out = new_df.copy()
+                        out[f"predicted_{ml_engine.target_col}"] = ml_engine.predict(new_df)
+                        if ml_engine.task == "classification":
+                            try:
+                                out["confidence"] = ml_engine.predict_proba(new_df).max(axis=1).round(4)
+                            except Exception:
+                                pass
+                        st.dataframe(out.head(100), width="stretch")
+                        st.download_button("⬇️ Download predictions (CSV)",
+                                           out.to_csv(index=False).encode("utf-8"),
+                                           "predictions.csv", "text/csv", key="ml_batch_dl")
+                except Exception as e:
+                    st.error(f"Batch prediction failed: {e}")
+
+            st.markdown("#### 💾 Export Model")
+            import io, joblib
+            buf = io.BytesIO()
+            joblib.dump(ml_engine, buf)
+            st.download_button("⬇️ Download trained model (.joblib)", buf.getvalue(),
+                               "statspro_model.joblib", "application/octet-stream",
+                               key="ml_model_dl")
+            st.caption("Load with MLEngine.load(path) from this repo's modules/ml_engine.py. "
+                       "Only load model files you created yourself.")
     else:
         st.info("Please preprocess your data first in the 'Preprocessing' tab.")
 
