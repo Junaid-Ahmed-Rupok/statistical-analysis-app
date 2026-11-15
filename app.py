@@ -16,6 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
+from modules import licensing
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -130,6 +131,46 @@ def _safe_col_stats(series):
         return 0.0, 1.0, 0.0
 
 # ════════════════════════════════════════════════════════════════
+# PRO / LICENSING
+# ════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, show_spinner=False)
+def _check_license(key: str) -> tuple:
+    """Cached for an hour so repeat reruns don't hit the licence server.
+    Network errors raise (and are therefore not cached)."""
+    return licensing.verify_key(
+        key,
+        store_id=licensing.get_setting("LS_STORE_ID") or None,
+        product_id=licensing.get_setting("LS_PRODUCT_ID") or None,
+    )
+
+
+def has_pro() -> bool:
+    """Unlocked when licensing is not configured, or a valid key was entered."""
+    if not licensing.pro_enabled():
+        return True
+    return bool(st.session_state.get("pro_active"))
+
+
+def upgrade_card(feature: str) -> None:
+    """Shown in place of a Pro-only feature."""
+    checkout = licensing.get_setting("CHECKOUT_URL")
+    st.markdown(f"""
+    <div style="background:#0a1f17;border:1px solid #34D399;border-radius:10px;
+        padding:20px;margin:12px 0;font-family:'JetBrains Mono',monospace;">
+        <div style="color:#34D399;font-size:15px;font-weight:700;">💎 {feature} is a Pro feature</div>
+        <div style="color:#bbb;font-size:13px;margin-top:6px;">
+            Pro unlocks: {', '.join(licensing.PRO_FEATURES)}.
+            All statistics, charts, preprocessing, AI insights and model training stay free.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    c1, c2 = st.columns([1, 2])
+    if checkout:
+        c1.link_button("Get Pro", checkout, width="stretch")
+    c2.caption("Already bought it? Enter your key in the sidebar → 🔑 Pro license.")
+
+
+# ════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ════════════════════════════════════════════════════════════════
 with st.sidebar:
@@ -190,6 +231,31 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+with st.sidebar:
+    if licensing.pro_enabled():
+        st.markdown("---")
+        if st.session_state.get("pro_active"):
+            st.success("💎 Pro active")
+        else:
+            with st.expander("🔑 Pro license"):
+                key_in = st.text_input("License key", type="password", key="license_key_input")
+                if st.button("Activate", key="license_activate_btn"):
+                    try:
+                        ok, msg = _check_license(key_in)
+                        st.session_state.pro_active = ok
+                        (st.success if ok else st.error)(msg)
+                        if ok:
+                            st.rerun()
+                    except licensing.LicenseError as e:
+                        st.warning(str(e))
+                checkout = licensing.get_setting("CHECKOUT_URL")
+                if checkout:
+                    st.link_button("Buy Pro", checkout, width="stretch")
+    sponsor = licensing.get_setting("SPONSOR_URL")
+    if sponsor:
+        st.link_button("❤️ Sponsor this project", sponsor, width="stretch")
 
 # ════════════════════════════════════════════════════════════════
 # HERO BANNER
@@ -811,7 +877,9 @@ with tabs[6]:
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🚀 Generate My PDF Report", key="pdf_btn"):
+        if not has_pro():
+            upgrade_card("PDF report export")
+        elif st.button("🚀 Generate My PDF Report", key="pdf_btn"):
             progress_bar = st.progress(0)
             status_text  = st.empty()
             figures      = []
@@ -1100,42 +1168,46 @@ with tabs[7]:
                     st.error(f"Prediction failed: {e}")
 
             # ── Batch prediction & model export ───────────────
-            st.markdown("---")
-            st.markdown("#### 📂 Batch Prediction")
-            st.caption("Upload a CSV with these columns: " + ", ".join(ml_engine.feature_cols))
-            up = st.file_uploader("CSV file", type=["csv"], key="ml_batch_upload")
-            if up is not None:
-                try:
-                    new_df = pd.read_csv(up)
-                    missing = [c for c in ml_engine.feature_cols if c not in new_df.columns]
-                    if missing:
-                        st.error(f"Missing columns: {missing}")
-                    elif len(new_df) > 50000:
-                        st.error("Please upload at most 50,000 rows.")
-                    else:
-                        out = new_df.copy()
-                        out[f"predicted_{ml_engine.target_col}"] = ml_engine.predict(new_df)
-                        if ml_engine.task == "classification":
-                            try:
-                                out["confidence"] = ml_engine.predict_proba(new_df).max(axis=1).round(4)
-                            except Exception:
-                                pass
-                        st.dataframe(out.head(100), width="stretch")
-                        st.download_button("⬇️ Download predictions (CSV)",
-                                           out.to_csv(index=False).encode("utf-8"),
-                                           "predictions.csv", "text/csv", key="ml_batch_dl")
-                except Exception as e:
-                    st.error(f"Batch prediction failed: {e}")
+            if not has_pro():
+                st.markdown("---")
+                upgrade_card("Batch prediction and model download")
+            else:
+                st.markdown("---")
+                st.markdown("#### 📂 Batch Prediction")
+                st.caption("Upload a CSV with these columns: " + ", ".join(ml_engine.feature_cols))
+                up = st.file_uploader("CSV file", type=["csv"], key="ml_batch_upload")
+                if up is not None:
+                    try:
+                        new_df = pd.read_csv(up)
+                        missing = [c for c in ml_engine.feature_cols if c not in new_df.columns]
+                        if missing:
+                            st.error(f"Missing columns: {missing}")
+                        elif len(new_df) > 50000:
+                            st.error("Please upload at most 50,000 rows.")
+                        else:
+                            out = new_df.copy()
+                            out[f"predicted_{ml_engine.target_col}"] = ml_engine.predict(new_df)
+                            if ml_engine.task == "classification":
+                                try:
+                                    out["confidence"] = ml_engine.predict_proba(new_df).max(axis=1).round(4)
+                                except Exception:
+                                    pass
+                            st.dataframe(out.head(100), width="stretch")
+                            st.download_button("⬇️ Download predictions (CSV)",
+                                               out.to_csv(index=False).encode("utf-8"),
+                                               "predictions.csv", "text/csv", key="ml_batch_dl")
+                    except Exception as e:
+                        st.error(f"Batch prediction failed: {e}")
 
-            st.markdown("#### 💾 Export Model")
-            import io, joblib
-            buf = io.BytesIO()
-            joblib.dump(ml_engine, buf)
-            st.download_button("⬇️ Download trained model (.joblib)", buf.getvalue(),
-                               "statspro_model.joblib", "application/octet-stream",
-                               key="ml_model_dl")
-            st.caption("Load with MLEngine.load(path) from this repo's modules/ml_engine.py. "
-                       "Only load model files you created yourself.")
+                st.markdown("#### 💾 Export Model")
+                import io, joblib
+                buf = io.BytesIO()
+                joblib.dump(ml_engine, buf)
+                st.download_button("⬇️ Download trained model (.joblib)", buf.getvalue(),
+                                   "statspro_model.joblib", "application/octet-stream",
+                                   key="ml_model_dl")
+                st.caption("Load with MLEngine.load(path) from this repo's modules/ml_engine.py. "
+                           "Only load model files you created yourself.")
     else:
         st.info("Please preprocess your data first in the 'Preprocessing' tab.")
 
@@ -1179,6 +1251,18 @@ with tabs[8]:
     l2.link_button("LinkedIn", "https://www.linkedin.com/in/sarder-junaid-ahmed-059b68240/", width="stretch")
     l3.link_button("Portfolio", "https://junaid-ahmed-rupok.github.io/My-World/", width="stretch")
     l4.link_button("Email", "mailto:junaidahmedrupok@gmail.com", width="stretch")
+
+    st.markdown("#### 💼 Work with me")
+    st.markdown(
+        "Need help with your data? I offer **statistical analysis and ML modelling** for theses, "
+        "papers and small businesses — data cleaning, hypothesis testing, regression/ML, and a "
+        "clear written report of methods and results. StatsPro does the heavy lifting; I check "
+        "the assumptions and explain the findings."
+    )
+    _hire = licensing.get_setting("HIRE_EMAIL", "junaidahmedrupok@gmail.com")
+    st.link_button("✉️ Request a quote",
+                   f"mailto:{_hire}?subject=Data%20analysis%20request%20(StatsPro)",
+                   width="content")
 
     st.caption("Found a bug or have a suggestion? Open an issue on the "
                "[StatsPro repository](https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app/issues).")

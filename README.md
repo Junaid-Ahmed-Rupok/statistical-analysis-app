@@ -231,6 +231,10 @@ To deploy your own fork:
 
 ---
 
+## 💎 Pro & services
+
+Everything analytical is free. **PDF report export, batch prediction and model download** are Pro features, unlocked by a licence key (off by default — see [MONETIZATION.md](MONETIZATION.md)). Need hands-on help? Use **Work with me** on the About tab.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
