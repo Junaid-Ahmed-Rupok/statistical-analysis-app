@@ -129,7 +129,7 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ## Usage
 
-The app is organized into 8 tabs, meant to be used in order:
+The app has 11 tabs, meant to be used roughly in order:
 
 | Tab | Purpose |
 |---|---|
@@ -139,8 +139,11 @@ The app is organized into 8 tabs, meant to be used in order:
 | 4. Statistics | Run all 10 statistical tests |
 | 5. Visualizations | Generate charts, heatmaps, and Q-Q plots |
 | 6. Insights | Read the AI-generated narrative report |
-| 7. Export | Download PDF and Excel reports |
-| 8. ML Studio | Train 6 models and make live predictions |
+| 7. PDF Report | Download the PDF report |
+| 8. ML Studio | Train 6 models, check uncertainty and fairness, make live predictions |
+| 9. Assumption Doctor | See which test fits your data and why |
+| 10. Write-up | APA-style Methods/Results text and a reproduce script |
+| 11. About | About the developer and how to get in touch |
 
 ---
 
@@ -249,7 +252,6 @@ MIT — see [LICENSE](LICENSE).
 
 Built by [Junaid Ahmed Rupok](https://github.com/Junaid-Ahmed-Rupok)
 
-Built with [Streamlit](https://streamlit.io) · [LangChain](https://www.langchain.com) · [Groq](https://groq.com) · [FAISS](https://github.com/facebookresearch/faiss) · [sentence-transformers](https://www.sbert.net)
+Built with [Streamlit](https://streamlit.io), [SciPy](https://scipy.org), [statsmodels](https://www.statsmodels.org) and [scikit-learn](https://scikit-learn.org)
 
 </div>
-```
