@@ -16,7 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup
+from modules import licensing, advisor, writeup, seal
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -482,7 +482,7 @@ with tabs[1]:
             st.markdown("---")
             st.download_button(
                 label="📥 Download Cleaned CSV",
-                data=st.session_state.cleaned_df.to_csv(index=False),
+                data=seal.csv_bytes(st.session_state.cleaned_df),
                 file_name="cleaned_data.csv",
                 mime="text/csv"
             )
@@ -930,6 +930,19 @@ with tabs[6]:
                 for fig in figures:
                     plt.close(fig)
 
+        with st.expander("🔐 Verify a report seal"):
+            st.caption("Every StatsPro PDF ends with an Integrity Seal: a SHA-256 fingerprint of the exact "
+                       "cleaned data it was computed from. Upload a cleaned_data.csv and paste the fingerprint "
+                       "from the report to check that they belong together.")
+            _vf = st.file_uploader("cleaned_data.csv", type=["csv"], key="seal_file")
+            _vh = st.text_input("Fingerprint from the report (64 hex characters, spaces are fine)", key="seal_hash")
+            if _vf is not None and _vh.strip():
+                if seal.verify(_vf.getvalue(), _vh):
+                    st.success("✅ Match — this data is exactly what the report was computed from.")
+                else:
+                    st.error("❌ No match — the file differs from the one used for the report "
+                             "(or the fingerprint was copied incorrectly).")
+
         if st.session_state.pdf_bytes is not None:
             st.markdown("---")
             st.success("🎉 Your report is ready!")
@@ -1319,7 +1332,7 @@ with tabs[9]:
         d1, d2, d3 = st.columns(3)
         d1.download_button("⬇️ Write-up (Markdown)", wu["markdown"].encode("utf-8"),
                            "statspro_writeup.md", "text/markdown", key="wu_md_dl", width="stretch")
-        d2.download_button("⬇️ Cleaned data (CSV)", _df.to_csv(index=False).encode("utf-8"),
+        d2.download_button("⬇️ Cleaned data (CSV)", seal.csv_bytes(_df),
                            "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
         if has_pro():
             script = writeup.build_script(_df.columns, st.session_state.stats_results, g_tbl, c_tbl)

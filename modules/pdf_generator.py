@@ -3,6 +3,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
+from reportlab.graphics.barcode import qr as _qr
+from reportlab.graphics.shapes import Drawing as _Drawing
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     Image, PageBreak, HRFlowable
@@ -195,6 +197,9 @@ class PDFReportGenerator:
             story.extend(self._visualizations_section(figures))
             story.append(PageBreak())
         story.extend(self._insights_section(insights))
+        if cleaned_df is not None:
+            story.append(PageBreak())
+            story.extend(self._integrity_page(df, cleaned_df, stats_results))
         doc.build(story, onFirstPage=self._on_first_page, onLaterPages=self._on_later_pages)
         for buf in self._img_buffers:
             try:
@@ -204,6 +209,66 @@ class PDFReportGenerator:
         self._img_buffers = []
         buffer.seek(0)
         return buffer
+
+    def _integrity_page(self, raw_df, cleaned_df, stats_results):
+        """Honesty Ledger + Integrity Seal (see modules/seal.py)."""
+        from modules import seal as _seal
+        led = _seal.honesty_ledger(stats_results, raw_df, cleaned_df)
+        sl = _seal.build_seal(cleaned_df)
+        body = ParagraphStyle('IntegrityBody', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica',
+                              fontSize=10, leading=15, alignment=TA_LEFT, textColor=self.colors['navy'])
+        e = []
+        e.append(Paragraph("Integrity Seal &amp; Honesty Ledger", self.styles['SectionHead']))
+        e.append(self.GoldDivider(450))
+        e.append(Spacer(1, 14))
+
+        e.append(Paragraph("The Honesty Ledger", self.styles['SubHead']))
+        if led["tests"]:
+            e.append(Paragraph(
+                f"This analysis tested <b>{led['tests']}</b> hypotheses. If none of the effects were real, "
+                f"about <b>{led['expected_by_chance']:.1f}</b> of them would still look significant (p &lt; .05) "
+                f"by chance alone. <b>{led['nominal']}</b> looked significant at face value. After "
+                f"Benjamini-Hochberg false-discovery-rate correction, <b>{led['survive']}</b> remain"
+                f"{'s' if led['survive'] == 1 else ''}"
+                f"{', so ' + str(led['removed_by_correction']) + ' apparent finding' + ('s were' if led['removed_by_correction'] != 1 else ' was') + ' likely noise' if led['removed_by_correction'] else ''}. "
+                f"Read the results above with this in mind.", body))
+        c = led["choices"]
+        if c:
+            e.append(Spacer(1, 6))
+            e.append(Paragraph(
+                f"<b>Choices made before testing:</b> {c['rows_removed']:,} row(s) and {c['columns_removed']} "
+                f"column(s) removed during cleaning; missing cells went from {c['missing_before']:,} to "
+                f"{c['missing_after']:,}. Every such choice can shift results, so they are disclosed here.",
+                body))
+        e.append(Spacer(1, 18))
+
+        e.append(Paragraph("The Integrity Seal", self.styles['SubHead']))
+        e.append(Paragraph(
+            "The fingerprint below is a SHA-256 hash of the exact cleaned data this report was computed from "
+            f"({sl['rows']:,} rows &times; {sl['columns']} columns). If even one value changes, the fingerprint "
+            "changes. To verify, export <i>cleaned_data.csv</i> from StatsPro and run "
+            "<font face='Courier'>sha256sum cleaned_data.csv</font> (or use <i>Verify a report seal</i> in the "
+            "app). The two must match.", body))
+        e.append(Spacer(1, 10))
+        code = _qr.QrCodeWidget(f"statspro:sha256:{sl['sha256']}")
+        x0, y0, x1, y1 = code.getBounds()
+        size = 1.3 * inch
+        d = _Drawing(size, size, transform=[size / (x1 - x0), 0, 0, size / (y1 - y0), 0, 0])
+        d.add(code)
+        hash_para = Paragraph(
+            f"<b>Seal ID:</b> {sl['id']}<br/><br/><font face='Courier' size=8>{_seal.group4(sl['sha256'][:32])}<br/>"
+            f"{_seal.group4(sl['sha256'][32:])}</font><br/><br/>"
+            f"<b>Generated with:</b> StatsPro, {sl['versions']}", body)
+        t = Table([[d, hash_para]], colWidths=[1.5 * inch, 4.9 * inch])
+        t.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                               ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                               ('BACKGROUND', (0, 0), (-1, -1), self.colors['bg_light']),
+                               ('PADDING', (0, 0), (-1, -1), 10)]))
+        e.append(t)
+        e.append(Spacer(1, 10))
+        e.append(Paragraph("A seal proves the report and data belong together. It does not prove the data "
+                           "itself is correct or the study well designed.", self.styles['CapText']))
+        return e
 
     def _cover_page(self, overview):
         elements = []
