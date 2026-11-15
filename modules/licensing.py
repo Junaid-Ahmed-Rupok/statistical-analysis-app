@@ -24,7 +24,7 @@ import urllib.request
 from typing import Optional
 
 VALIDATE_URL = "https://api.lemonsqueezy.com/v1/licenses/validate"
-PRO_FEATURES = ("PDF report export", "Batch prediction", "Model download")
+PRO_FEATURES = ("PDF report export", "Reproducible script export", "Batch prediction", "Model download")
 
 
 class LicenseError(Exception):

@@ -16,7 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing
+from modules import licensing, advisor, writeup
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -304,6 +304,8 @@ tabs = st.tabs([
     "💡 AI Insights",
     "📄 PDF Report",
     "🤖 ML Studio",
+    "🩺 Assumption Doctor",
+    "✍️ Write-up",
     "👨‍💻 About",
 ])
 
@@ -1212,9 +1214,82 @@ with tabs[7]:
         st.info("Please preprocess your data first in the 'Preprocessing' tab.")
 
 # ════════════════════════════════════════════════════════════════
-# TAB 9 — About the developer
+# TAB 9 — Assumption Doctor
 # ════════════════════════════════════════════════════════════════
+@st.cache_data(show_spinner=False)
+def _advisor_tables(df: pd.DataFrame):
+    return advisor.group_comparisons(df), advisor.correlation_advice(df)
+
+
 with tabs[8]:
+    st.markdown("### 🩺 Assumption Doctor")
+    st.markdown("*Checks the assumptions behind every test, switches to a safer one when they fail, "
+                "and tells you why — in plain English.*")
+    if st.session_state.cleaned_df is None:
+        st.info("Please preprocess your data first in the 'Preprocessing' tab.")
+    else:
+        g_tbl, c_tbl = _advisor_tables(st.session_state.cleaned_df)
+        if g_tbl.empty and c_tbl.empty:
+            st.info("Need at least two numeric columns, or a numeric column and a categorical column "
+                    "with 2–10 groups, to compare.")
+        if not g_tbl.empty:
+            st.markdown("#### Group comparisons")
+            n_switch = int((~g_tbl["Assumptions OK"]).sum())
+            st.caption(f"{len(g_tbl)} comparisons · {n_switch} needed a safer test than the classic ANOVA. "
+                       "P-values are adjusted for multiple testing (Benjamini-Hochberg).")
+            show = g_tbl[["Numeric Variable", "Grouping Variable", "Recommended Test", "Statistic",
+                          "P-Value", "P-Value (FDR)", "Effect Size", "Effect Measure", "Effect Label",
+                          "Sig. after FDR"]]
+            st.dataframe(show, width="stretch", hide_index=True)
+            with st.expander("Why was each test chosen?"):
+                for _, r in g_tbl.iterrows():
+                    st.markdown(f"**{r['Numeric Variable']} by {r['Grouping Variable']}** — {r['Why']}")
+        if not c_tbl.empty:
+            st.markdown("#### Correlations")
+            st.dataframe(c_tbl[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
+                                "P-Value (FDR)", "Effect Label", "Sig. after FDR"]],
+                         width="stretch", hide_index=True)
+            with st.expander("Why Pearson or Spearman?"):
+                for _, r in c_tbl.iterrows():
+                    st.markdown(f"**{r['Variable 1']} ~ {r['Variable 2']}** — {r['Why']}")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 10 — Thesis-ready write-up
+# ════════════════════════════════════════════════════════════════
+with tabs[9]:
+    st.markdown("### ✍️ Thesis-ready Write-up")
+    st.markdown("*APA-style Methods and Results paragraphs, plus a script that reproduces every number.*")
+    if st.session_state.cleaned_df is None or st.session_state.stats_results is None:
+        st.info("Run **Preprocessing** and **Statistical Tests** first, then come back here.")
+    else:
+        _df = st.session_state.cleaned_df
+        g_tbl, c_tbl = _advisor_tables(_df)
+        wu = writeup.build_writeup(_df, st.session_state.stats_results, g_tbl, c_tbl)
+        st.markdown("#### Methods")
+        st.write(wu["methods"])
+        for section, sentences in wu["results"].items():
+            st.markdown(f"#### Results — {section}")
+            st.write(" ".join(sentences))
+        st.caption("This is a draft. Check each statement against your research question and study "
+                   "design before using it; automated analysis cannot judge causality.")
+        d1, d2, d3 = st.columns(3)
+        d1.download_button("⬇️ Write-up (Markdown)", wu["markdown"].encode("utf-8"),
+                           "statspro_writeup.md", "text/markdown", key="wu_md_dl", width="stretch")
+        d2.download_button("⬇️ Cleaned data (CSV)", _df.to_csv(index=False).encode("utf-8"),
+                           "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
+        if has_pro():
+            script = writeup.build_script(_df.columns, st.session_state.stats_results, g_tbl, c_tbl)
+            d3.download_button("⬇️ Reproduce script (.py)", script.encode("utf-8"),
+                               "reproduce.py", "text/x-python", key="wu_py_dl", width="stretch")
+            st.caption("Put `reproduce.py` next to `cleaned_data.csv` and run `python reproduce.py cleaned_data.csv` "
+                       "to recompute every reported p-value.")
+        else:
+            upgrade_card("Reproducible script export")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 11 — About the developer
+# ════════════════════════════════════════════════════════════════
+with tabs[10]:
     st.markdown("### 👨‍💻 About the Developer")
     st.markdown("""
     <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;">
