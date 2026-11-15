@@ -96,6 +96,10 @@ class MLEngine:
         self.notes: list[str] = []                          # human-readable heads-ups from the last run
         self._reclassified_cols: set[str] = set()
         self._X_test: np.ndarray | None = None
+        self._clean_index = None        # original row labels of the rows used for training/testing
+        self._test_pos: np.ndarray | None = None
+        self._cal_scores: np.ndarray | None = None   # conformal calibration scores
+        self.conformal: dict | None = None
         self._y_test: np.ndarray | None = None
         self._cat_idx: list[int] = []
 
@@ -313,6 +317,7 @@ class MLEngine:
         self._cat_idx = [i for i, c in enumerate(self.feature_cols) if c in self.categorical_labels]
         X = df_clean[self.feature_cols].values.astype(float)
         y = df_clean[target].values
+        self._clean_index = df_clean.index.to_numpy()
         return X, y
 
     # ── Model building ────────────────────────────────────────────────────────
@@ -382,9 +387,11 @@ class MLEngine:
             stratify = None
 
         test_size = 0.15 if len(X) < 100 else 0.2
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42, stratify=stratify
+        pos = np.arange(len(X))
+        X_train, X_test, y_train, y_test, pos_train, pos_test = train_test_split(
+            X, y, pos, test_size=test_size, random_state=42, stratify=stratify
         )
+        self._test_pos = pos_test
         self._X_test, self._y_test = X_test, y_test
 
         models = self._build_models()
@@ -411,6 +418,8 @@ class MLEngine:
         self._select_best_model()
         self.holdout = {"y_true": y_test, "y_pred": self.best_pipeline.predict(X_test)}
         self._extract_feature_importance()
+        self._fit_conformal(X_train, y_train)
+        self._sanity_notes()
         return self.results
 
     def _train_and_evaluate(self, name, pipe, X_train, X_test, y_train, y_test, cv) -> dict:
@@ -500,6 +509,168 @@ class MLEngine:
             f"Permutation importance — drop in {'R²' if self.task == 'regression' else 'F1'} "
             f"on the holdout set when a feature is shuffled"
         )
+
+    # ── Trust layer: uncertainty, sanity checks, fairness ────────────────────
+
+    def _fit_conformal(self, X_train, y_train, calib_frac: float = 0.25):
+        """Split-conformal calibration. A clone of the best model is fitted on part
+        of the training data; its errors on the remaining part set the interval
+        width. Coverage is then CHECKED on the untouched holdout set."""
+        from sklearn.base import clone
+        try:
+            Xa, Xc, ya, yc = train_test_split(
+                X_train, y_train, test_size=calib_frac, random_state=7,
+                stratify=y_train if self.task == "classification" else None)
+        except ValueError:                      # too few rows in a class to stratify
+            Xa, Xc, ya, yc = train_test_split(X_train, y_train, test_size=calib_frac, random_state=7)
+        if len(yc) < 10:
+            return
+        try:
+            tmp = clone(self.best_pipeline).fit(Xa, ya)
+            if self.task == "regression":
+                self._cal_scores = np.abs(yc - tmp.predict(Xc))
+            else:
+                proba = tmp.predict_proba(Xc)
+                idx = np.searchsorted(tmp.classes_, yc)
+                self._cal_scores = 1.0 - proba[np.arange(len(yc)), idx]
+        except Exception:
+            logger.exception("Conformal calibration failed.")
+            self._cal_scores = None
+            return
+        self.conformal = {"n_cal": int(len(yc))}
+        self.conformal_summary(0.10)
+
+    def conformal_quantile(self, alpha: float) -> float:
+        n = len(self._cal_scores)
+        level = min(1.0, np.ceil((n + 1) * (1 - alpha)) / n)
+        return float(np.quantile(self._cal_scores, level, method="higher"))
+
+    def conformal_summary(self, alpha: float = 0.10) -> dict | None:
+        """Target vs observed coverage on the holdout set (and average interval
+        width / set size)."""
+        if self._cal_scores is None or self._X_test is None:
+            return None
+        q = self.conformal_quantile(alpha)
+        yt = self._y_test
+        if self.task == "regression":
+            pred = self.best_pipeline.predict(self._X_test)
+            covered = np.abs(yt - pred) <= q
+            extra = {"avg_width": float(2 * q)}
+        else:
+            proba = self.best_pipeline.predict_proba(self._X_test)
+            sets = proba >= (1 - q)
+            idx = np.searchsorted(self.best_pipeline.classes_, yt)
+            covered = sets[np.arange(len(yt)), idx]
+            extra = {"avg_set_size": float(sets.sum(axis=1).mean())}
+        self.conformal.update({"alpha": alpha, "q": q, "target": 1 - alpha,
+                               "observed": float(covered.mean()), **extra})
+        return dict(self.conformal)
+
+    def predict_interval(self, input_df: pd.DataFrame, alpha: float = 0.10):
+        """Regression: (prediction, lower, upper) with ~(1-alpha) coverage."""
+        if self.task != "regression" or self._cal_scores is None:
+            raise RuntimeError("Prediction intervals need a trained regression model.")
+        pred = self.predict(input_df).astype(float)
+        q = self.conformal_quantile(alpha)
+        return pred, pred - q, pred + q
+
+    def predict_set(self, input_df: pd.DataFrame, alpha: float = 0.10) -> list[list[str]]:
+        """Classification: the set of plausible classes per row, containing the
+        true class ~(1-alpha) of the time. A 1-class set = confident; a big set =
+        the model is unsure."""
+        if self.task != "classification" or self._cal_scores is None:
+            raise RuntimeError("Prediction sets need a trained classification model.")
+        proba = self.predict_proba(input_df)
+        q = self.conformal_quantile(alpha)
+        out = []
+        for row in proba:
+            keep = [self.class_labels[i] for i in np.argsort(-row) if row[i] >= 1 - q]
+            out.append(keep or [self.class_labels[int(np.argmax(row))]])
+        return out
+
+    def _sanity_notes(self):
+        """Flag results that look too good (usually leakage) or unstable."""
+        if self.results is None or self.best_model_name is None:
+            return
+        row = self.results[self.results["Model"] == self.best_model_name].iloc[0]
+        if self.task == "regression":
+            test, cv = row.get("Test R²"), row.get("CV R² (mean)")
+            if pd.notna(test) and test > 0.98:
+                self.notes.append(f"Test R² is {test:.3f} — almost perfect. Real data rarely behaves like this; "
+                                  f"check whether a feature contains or is derived from the target.")
+        else:
+            test, cv = row.get("Test Accuracy"), row.get("CV F1 (mean)")
+            if pd.notna(test) and test >= 0.99:
+                self.notes.append(f"Test accuracy is {test:.1%} — suspiciously high. Check for a feature that "
+                                  f"gives the answer away (an ID, a copy of the target, or a later-stage value).")
+        key = "Test R²" if self.task == "regression" else "Test F1"
+        if pd.notna(cv) and pd.notna(row.get(key)) and abs(row[key] - cv) > 0.15:
+            self.notes.append(f"Cross-validation ({cv:.2f}) and holdout ({row[key]:.2f}) disagree by more than "
+                              f"0.15 — the estimate is unstable, probably because there is little data.")
+
+    def fairness_report(self, df: pd.DataFrame, group_cols: list[str] | None = None,
+                        min_group: int = 10) -> tuple[pd.DataFrame, list[str]]:
+        """Per-group performance on the holdout set.
+
+        `df` is the data passed to run(). Groups can be ANY categorical column,
+        including ones left out of the model (the usual case for sensitive
+        attributes). Returns (table, warnings)."""
+        if self._test_pos is None or self._clean_index is None:
+            raise RuntimeError("Train a model first.")
+        rows_idx = self._clean_index[self._test_pos]
+        test_df = df.loc[rows_idx]
+        y_true, y_pred = self.holdout["y_true"], self.holdout["y_pred"]
+        if group_cols is None:
+            group_cols = [c for c in df.columns if c != self.target_col and _is_text_like(df[c])
+                          and 2 <= df[c].nunique() <= 8]
+        reg = self.task == "regression"
+        overall_err = float(np.mean(np.abs(y_true - y_pred))) if reg else float(np.mean(y_true == y_pred))
+        pos = 1 if (not reg and len(self.class_labels) == 2) else None
+        recs, warn = [], []
+        for col in group_cols:
+            vals = test_df[col].astype(str).to_numpy()
+            per = []
+            for g in sorted(set(vals)):
+                m = vals == g
+                if m.sum() < min_group:
+                    continue
+                yt, yp = y_true[m], y_pred[m]
+                rec = {"Group column": col, "Group": g, "n": int(m.sum())}
+                if reg:
+                    rec.update({"MAE": float(np.mean(np.abs(yt - yp))),
+                                "RMSE": float(np.sqrt(np.mean((yt - yp) ** 2))),
+                                "Bias (pred − actual)": float(np.mean(yp - yt))})
+                else:
+                    rec["Accuracy"] = float(np.mean(yt == yp))
+                    if pos is not None:
+                        rec["Positive rate"] = float(np.mean(yp == pos))
+                        has_pos = (yt == pos).any()
+                        rec["True-positive rate"] = float(np.mean(yp[yt == pos] == pos)) if has_pos else np.nan
+                per.append(rec)
+            recs.extend(per)
+            if len(per) < 2:
+                continue
+            if reg:
+                worst = max(per, key=lambda r: r["MAE"]); best = min(per, key=lambda r: r["MAE"])
+                if worst["MAE"] > 1.25 * overall_err and worst["MAE"] > 1.25 * best["MAE"]:
+                    warn.append(f"Errors are {worst['MAE'] / best['MAE']:.1f}× larger for {col} = {worst['Group']} "
+                                f"than for {best['Group']} (MAE {worst['MAE']:.2f} vs {best['MAE']:.2f}).")
+            else:
+                accs = [r["Accuracy"] for r in per]
+                if max(accs) - min(accs) > 0.10:
+                    lo = per[int(np.argmin(accs))]; hi = per[int(np.argmax(accs))]
+                    warn.append(f"Accuracy differs by {max(accs) - min(accs):.0%} across {col}: "
+                                f"{hi['Group']} {hi['Accuracy']:.0%} vs {lo['Group']} {lo['Accuracy']:.0%}.")
+                if pos is not None:
+                    pr = [r["Positive rate"] for r in per]
+                    if max(pr) - min(pr) > 0.10:
+                        warn.append(f"The model predicts '{self.class_labels[1]}' at very different rates across {col} "
+                                    f"({min(pr):.0%} to {max(pr):.0%}) — check demographic parity.")
+                    tp = [r["True-positive rate"] for r in per if pd.notna(r["True-positive rate"])]
+                    if len(tp) >= 2 and max(tp) - min(tp) > 0.10:
+                        warn.append(f"True-positive rates for '{self.class_labels[1]}' differ by {max(tp) - min(tp):.0%} across {col} — "
+                                    f"it is missed more often in some groups (equal opportunity).")
+        return pd.DataFrame(recs), warn
 
     # ── Inference ─────────────────────────────────────────────────────────────
 

@@ -231,9 +231,15 @@ To deploy your own fork:
 
 ---
 
+## ✨ What makes StatsPro different
+
+- **🩺 Assumption Doctor** — checks normality, variance and outliers for every comparison, switches to Welch's ANOVA / Mann-Whitney / Kruskal-Wallis / Spearman when the classic test would mislead, and explains each choice in plain English (with FDR correction across all tests).
+- **✍️ Thesis-ready write-up** — APA-style Methods and Results paragraphs, plus a `reproduce.py` script that recomputes every reported p-value from your data (tested to match).
+- **🛡️ Trust Report in ML Studio** — prediction intervals / sets with *measured* coverage (split-conformal), per-group performance and fairness gaps (even for columns left out of the model), and warnings when a result looks too good to be true.
+
 ## 💎 Pro & services
 
-Everything analytical is free. **PDF report export, batch prediction and model download** are Pro features, unlocked by a licence key (off by default — see [MONETIZATION.md](MONETIZATION.md)). Need hands-on help? Use **Work with me** on the About tab.
+Everything analytical is free. **PDF report export, reproducible-script export, batch prediction and model download** are Pro features, unlocked by a licence key (off by default — see [MONETIZATION.md](MONETIZATION.md)). Need hands-on help? Use **Work with me** on the About tab.
 
 ## License
 

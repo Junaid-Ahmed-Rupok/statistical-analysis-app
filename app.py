@@ -1118,6 +1118,38 @@ with tabs[7]:
                     fig.tight_layout()
                     st.pyplot(fig); plt.close(fig)
 
+            # ── Trust report: uncertainty + fairness ─────────
+            st.markdown("---")
+            st.markdown("#### 🛡️ Trust Report")
+            if ml_engine.conformal is not None:
+                cov = st.select_slider("Coverage level", options=[0.80, 0.90, 0.95], value=0.90,
+                                       format_func=lambda v: f"{v:.0%}", key="ml_cov_level")
+                cs = ml_engine.conformal_summary(round(1 - cov, 2))
+                if is_clf:
+                    st.markdown(f"**Prediction sets:** the true class is inside the set about **{cs['target']:.0%}** "
+                                f"of the time. On the holdout data it was **{cs['observed']:.0%}** "
+                                f"(average set size {cs['avg_set_size']:.2f}; 1.00 = always sure).")
+                else:
+                    st.markdown(f"**Prediction intervals:** ± **{cs['q']:.3g}** around each prediction should "
+                                f"contain the true value about **{cs['target']:.0%}** of the time. On the holdout "
+                                f"data it did **{cs['observed']:.0%}** of the time.")
+                st.caption(f"Calibrated on {cs['n_cal']} held-back training rows (split-conformal). "
+                           "Small holdout sets make the observed number noisy.")
+            try:
+                fair_df, fair_warn = ml_engine.fairness_report(df)
+            except Exception:
+                fair_df, fair_warn = None, []
+            if fair_df is not None and not fair_df.empty:
+                st.markdown("**Performance by group (holdout set)**")
+                st.dataframe(fair_df, width="stretch", hide_index=True)
+                if fair_warn:
+                    for w in fair_warn[:6]:
+                        st.warning(f"⚖️ {w}")
+                    st.caption("Groups with fewer than ~30 rows are noisy — treat these as prompts to look "
+                               "closer, not as proof of bias.")
+                else:
+                    st.success("No large performance gaps between groups were found on the holdout set.")
+
             # ── Live Prediction ───────────────────────────────
             st.markdown("---")
             st.markdown("#### 🔮 Live Prediction")
@@ -1158,6 +1190,18 @@ with tabs[7]:
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
+                    if ml_engine.conformal is not None:
+                        _alpha = round(1 - st.session_state.get("ml_cov_level", 0.90), 2)
+                        try:
+                            if is_clf:
+                                _set = ml_engine.predict_set(input_df, _alpha)[0]
+                                st.info(f"With {1 - _alpha:.0%} confidence the answer is one of: **{', '.join(_set)}**"
+                                        + (" — the model is sure." if len(_set) == 1 else " — the model is unsure."))
+                            else:
+                                _p, _lo, _hi = ml_engine.predict_interval(input_df, _alpha)
+                                st.info(f"{1 - _alpha:.0%} prediction interval: **{_lo[0]:,.3f} to {_hi[0]:,.3f}**")
+                        except Exception:
+                            pass
                     if is_clf:
                         try:
                             proba = ml_engine.predict_proba(input_df)[0]
