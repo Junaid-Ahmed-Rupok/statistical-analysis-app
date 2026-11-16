@@ -2,18 +2,37 @@
 
 # StatsPro
 
-**AI-Powered Statistical Analysis Platform**
+**Statistical analysis for students and researchers — no coding needed**
 
 [![Version](https://img.shields.io/badge/version-2.3-34D399?style=flat-square)](https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/streamlit-1.67-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![License](https://img.shields.io/badge/license-MIT-22C55E?style=flat-square)](LICENSE)
 
-Turn raw CSV data into professional statistical reports — no code required.
+Working on a thesis or assignment? Upload your CSV and get the right tests, plain-English explanations, charts and an APA-style write-up.
 
-[**Live Demo →**](https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app)
+[**Analyze your dataset, free →**](https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app)
 
 </div>
+
+---
+
+## 🎓 Problems StatsPro solves
+
+| You are thinking… | StatsPro gives you |
+|---|---|
+| "I don't understand my dataset." | Instant summary, data-quality score and charts |
+| "My data has missing values." | Automatic cleaning, with every choice logged |
+| "Which statistical test should I use?" | **Assumption Doctor**: picks the test and says why |
+| "What does this p-value mean?" | Plain-English results with effect sizes and multiple-testing correction |
+| "I need charts for my thesis." | 15+ publication-style visualizations |
+| "I need the Results section." | **APA-style write-up** and a PDF report |
+| "Can I trust this model?" | **Trust Report**: honest error ranges and fairness by group |
+| "Can I reproduce this later?" | A script that recomputes every number, plus an **Integrity Seal** |
+
+### 🔒 Your data
+
+StatsPro does not save your files. An uploaded CSV is processed in memory for your session only and is gone when the session ends; nothing is written to a database. The hosted demo runs on Streamlit Community Cloud, so for confidential data run it on your own machine (see Quickstart). Automated suggestions are a starting point, not a substitute for your supervisor's or statistician's judgment.
 
 ---
 

@@ -351,6 +351,8 @@ with tabs[0], _guard():
         label_visibility="visible"
     )
 
+    st.caption("🔒 Your file is processed in memory for this session only. StatsPro does not save it "
+               "or write it to a database. For confidential data, run the app on your own computer.")
     st.markdown("**No data? Try our sample dataset:**")
     if st.button("📊 Load Sample Dataset (Restaurant Tips)", type="secondary"):
         # Bundled copy: works offline and behind firewalls (seaborn's loader downloads from GitHub).

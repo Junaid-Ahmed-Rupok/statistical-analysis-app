@@ -60,3 +60,27 @@ post the live app and a short demo on LinkedIn, in thesis / research communities
 and on Reddit (r/statistics, r/datascience, r/AskStatistics, Bangladeshi
 student groups); list a "data analysis" gig on Upwork/Fiverr that links to it; and
 keep the "Work with me" card current.
+
+
+## Student pricing experiment (Bangladesh)
+
+Suggested prices to **test**, not validated market prices. Prices live in Lemon
+Squeezy, not in the code, so changing them never needs a redeploy.
+
+| Offer | Price to try | What it unlocks |
+|---|---|---|
+| Free | ৳0 | Upload, EDA, tests, charts, ML training |
+| Single research export | ৳99–149 | PDF report, cleaned CSV and reproduce script for one project |
+| 7-day student pass | ৳199 | All Pro features for a deadline week |
+| Monthly student Pro | ৳299 | All Pro features |
+
+Notes:
+- Create each as a separate Lemon Squeezy product or variant. For passes, set the
+  licence key to expire after 7 or 30 days. StatsPro only checks that a key is
+  valid, so key expiry is enforced by Lemon Squeezy, not by this app.
+- Confirm which currencies Lemon Squeezy lets you charge in. If BDT is not offered
+  you will price in USD, so ৳ amounts above are only a guide.
+- Track: visitors, uploads, completed analyses, clicks on "upgrade", paying users.
+  The number that matters most is the share of uploaders who finish an analysis.
+- Do not market StatsPro as guaranteeing correct conclusions or thesis acceptance.
+  The honest selling point is transparent, reproducible analysis.

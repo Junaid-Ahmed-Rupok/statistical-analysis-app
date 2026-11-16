@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StatsPro — AI-Powered Statistical Analysis</title>
+<title>StatsPro — Statistical analysis for students and researchers</title>
 <meta name="description" content="Turn raw CSV data into professional statistical reports. No code required.">
 <style>
   :root{--bg:#000;--card:#141414;--line:#242424;--fg:#f2f2f2;--mute:#8a8a8a;--accent:#34D399}
@@ -32,14 +32,28 @@
 <body>
 <main>
   <h1>Stats<span>Pro</span></h1>
-  <p class="sub">Turn raw CSV data into professional statistical reports — hypothesis tests, visualizations, AI insights, AutoML and PDF export. No code required.</p>
+  <p class="sub">Analyze your thesis or assignment data without coding. Upload a CSV, get the right statistical tests, plain-English explanations, charts and an APA-style write-up you can check and reuse.</p>
   <div class="btns">
-    <a class="btn primary" href="https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app/">Launch the app →</a>
+    <a class="btn primary" href="https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app/">Analyze your dataset, free →</a>
     <a class="btn ghost" href="https://github.com/Junaid-Ahmed-Rupok/statistical-analysis-app">View on GitHub</a>
   </div>
   <p class="note">The app runs on Streamlit Community Cloud. If it was idle it may take up to a minute to wake.</p>
 
-  <div class="grid">
+  <h2>Problems it solves</h2>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>"I don't understand my data"</h3><p>Instant summary, data-quality score and charts for any CSV.</p></div>
+    <div class="card"><h3>"My data has missing values"</h3><p>Automatic cleaning with every choice logged, so you can report it.</p></div>
+    <div class="card"><h3>"Which test should I use?"</h3><p>The Assumption Doctor picks the right test and explains why.</p></div>
+    <div class="card"><h3>"What does this p-value mean?"</h3><p>Plain-English results with effect sizes and multiple-testing correction.</p></div>
+    <div class="card"><h3>"I need the Results section"</h3><p>APA-style Methods and Results text, plus a PDF report.</p></div>
+    <div class="card"><h3>"Can I reproduce this later?"</h3><p>A script that recomputes every number, and an Integrity Seal that ties the report to your data.</p></div>
+  </div>
+
+  <h2>Your data</h2>
+  <p class="note" style="max-width:680px">StatsPro does not save your files. An uploaded CSV is processed in memory for your session only and is gone when you close the tab or the session ends. It is never written to a database. The app is hosted on Streamlit Community Cloud. For sensitive or confidential data, run StatsPro on your own computer (instructions below). Automated suggestions are a starting point, not a substitute for your supervisor's judgment.</p>
+
+  <h2>Everything inside</h2>
+  <div class="grid" style="margin-top:16px">
     <div class="card"><h3>Preprocessing</h3><p>KNN imputation, IQR outlier handling, duplicate and constant-column removal, quality score.</p></div>
     <div class="card"><h3>Statistical tests</h3><p>Scale-aware normality, correlations with CIs, chi-square with Cramér's V, ANOVA with effect sizes, VIF, regression, FDR correction.</p></div>
     <div class="card"><h3>Assumption Doctor</h3><p>Checks the assumptions behind every test, switches to a safer one when they fail, and explains why.</p></div>
@@ -53,7 +67,7 @@
   <h2>Free, with a Pro tier</h2>
   <div class="grid" style="margin-top:16px">
     <div class="card"><h3>Free</h3><p>Preprocessing, 10+ statistical tests, charts, AI insights, ML Studio training and live prediction.</p></div>
-    <div class="card"><h3>Pro</h3><p>PDF report export, batch CSV prediction and trained-model download. Get it inside the app.</p></div>
+    <div class="card"><h3>Pro</h3><p>PDF report, cleaned-CSV download, reproduce script, batch CSV prediction and trained-model download. Get it inside the app.</p></div>
     <div class="card"><h3>Work with me</h3><p>Need your data analysed? Statistical analysis and ML modelling for theses, papers and small businesses. <a style="color:var(--accent)" href="mailto:junaidahmedrupok@gmail.com?subject=Data%20analysis%20request">Request a quote</a></p></div>
   </div>
 
