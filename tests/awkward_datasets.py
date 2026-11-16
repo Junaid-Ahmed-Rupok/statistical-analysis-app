@@ -1,0 +1,41 @@
+import numpy as np, pandas as pd
+rng = np.random.default_rng(0)
+
+def housing(n=300):
+    return pd.DataFrame({"Avg. Area Income": rng.normal(68000, 10000, n), "Avg. Area House Age": rng.normal(6, 1, n),
+        "Avg. Area Number of Rooms": rng.normal(7, 1, n), "Area Population": rng.normal(36000, 9000, n),
+        "Price": rng.normal(1.2e6, 3e5, n), "Address": [f"{i} Main St\nCity {i}, XX {10000+i}" for i in range(n)]})
+
+D = {}
+D["housing_address"] = housing()
+D["tiny_5rows"] = pd.DataFrame({"a": [1, 2, 3, 4, 5], "b": [2, 4, 5, 4, 5], "c": list("xyxyx")})
+D["single_column"] = pd.DataFrame({"a": rng.normal(size=100)})
+D["single_cat_col"] = pd.DataFrame({"a": rng.choice(list("abc"), 100)})
+D["all_constant"] = pd.DataFrame({"a": [1]*50, "b": ["x"]*50, "c": [2.5]*50})
+D["all_null_col"] = pd.DataFrame({"a": rng.normal(size=80), "b": [np.nan]*80, "c": rng.choice(["u", "v"], 80)})
+D["half_null"] = pd.DataFrame({"a": rng.normal(size=120), "b": np.where(rng.random(120) < .6, np.nan, rng.normal(size=120)), "c": rng.choice(["u", "v", None], 120)})
+D["datetime_cols"] = pd.DataFrame({"date": pd.date_range("2020-01-01", periods=120).astype(str), "v": rng.normal(size=120).cumsum(), "w": rng.normal(size=120)})
+D["unicode_names"] = pd.DataFrame({"größe (cm)": rng.normal(170, 10, 100), "体重/kg": rng.normal(70, 9, 100), "性别": rng.choice(["男", "女"], 100)})
+D["weird_colnames"] = pd.DataFrame({"a b": rng.normal(size=90), "a.b": rng.normal(size=90), "Unnamed: 0": range(90), "x%": rng.normal(size=90), "": rng.normal(size=90)}) if False else pd.DataFrame({"a b": rng.normal(size=90), "a.b": rng.normal(size=90), "Unnamed: 0": range(90), "x%": rng.normal(size=90)})
+D["duplicate_colnames"] = pd.DataFrame(rng.normal(size=(60, 3)), columns=["a", "a", "b"])
+D["high_card_cat"] = pd.DataFrame({"id": [f"u{i}" for i in range(200)], "v": rng.normal(size=200), "g": rng.choice(list("abcdefghijklmnop"), 200), "t": rng.normal(size=200)})
+D["bool_cols"] = pd.DataFrame({"flag": rng.random(100) < .5, "x": rng.normal(size=100), "y": rng.integers(0, 2, 100)})
+D["binary_target"] = pd.DataFrame({"x1": rng.normal(size=200), "x2": rng.normal(size=200), "grp": rng.choice(list("ab"), 200)})
+D["binary_target"]["y"] = (D["binary_target"]["x1"] + rng.normal(size=200) > 0).astype(int)
+D["multiclass_imbalanced"] = pd.DataFrame({"x": rng.normal(size=200), "z": rng.normal(size=200), "y": rng.choice(["a", "b", "c"], 200, p=[.9, .09, .01])})
+D["negatives_inf"] = pd.DataFrame({"a": np.r_[rng.normal(size=98), np.inf, -np.inf], "b": rng.normal(size=100)})
+D["huge_values"] = pd.DataFrame({"a": rng.normal(size=100) * 1e15, "b": rng.normal(size=100) * 1e-15, "c": rng.normal(size=100)})
+D["wide_50cols"] = pd.DataFrame(rng.normal(size=(100, 50)), columns=[f"f{i}" for i in range(50)])
+D["wider_than_rows"] = pd.DataFrame(rng.normal(size=(15, 40)), columns=[f"f{i}" for i in range(40)])
+D["mixed_type_col"] = pd.DataFrame({"a": [1, "two", 3.0, None, "5"] * 20, "b": rng.normal(size=100)})
+D["numeric_strings"] = pd.DataFrame({"price": [f"${x:,.2f}" for x in rng.normal(100, 20, 100)], "n": rng.integers(1, 9, 100).astype(str), "g": rng.choice(list("xy"), 100)})
+D["perfect_collinear"] = pd.DataFrame({"a": rng.normal(size=100)}); D["perfect_collinear"]["b"] = D["perfect_collinear"]["a"] * 2; D["perfect_collinear"]["c"] = rng.normal(size=100); D["perfect_collinear"]["y"] = D["perfect_collinear"]["a"] + rng.normal(size=100)
+D["two_rows"] = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+D["empty_after_dropna"] = pd.DataFrame({"a": [np.nan] * 10, "b": [np.nan] * 10})
+D["many_groups_small"] = pd.DataFrame({"g": np.repeat(list("abcdefgh"), 4), "v": rng.normal(size=32), "w": rng.normal(size=32)})
+D["long_text"] = pd.DataFrame({"review": ["great product " * 30 + str(i) for i in range(80)], "stars": rng.integers(1, 6, 80), "len": rng.normal(size=80)})
+D["dup_rows"] = pd.concat([pd.DataFrame({"a": rng.normal(size=50), "b": rng.choice(list("xy"), 50)})] * 3, ignore_index=True)
+D["int_target_many_levels"] = pd.DataFrame({"x": rng.normal(size=300), "y": rng.integers(0, 40, 300)})
+D["date_dtype"] = pd.DataFrame({"d": pd.date_range("2021-01-01", periods=100), "v": rng.normal(size=100), "w": rng.normal(size=100)})
+D["category_dtype"] = pd.DataFrame({"c": pd.Categorical(rng.choice(list("abc"), 100)), "v": rng.normal(size=100), "w": rng.normal(size=100)})
+D["index_col_leak"] = pd.DataFrame({"Unnamed: 0": range(100), "v": rng.normal(size=100), "w": rng.normal(size=100)})

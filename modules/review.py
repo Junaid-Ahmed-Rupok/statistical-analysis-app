@@ -46,10 +46,13 @@ def sample_size(kind: str, effect: float, power: float = 0.8, alpha: float = ALP
 
 def min_detectable_effect(kind: str, n: float, power: float = 0.8, alpha: float = ALPHA, groups: int = 2) -> float:
     """Smallest effect detectable with the given n (per group for t / anova, total for corr)."""
-    if kind == "t":
-        return float(TTestIndPower().solve_power(None, nobs1=n, power=power, alpha=alpha))
-    if kind == "anova":
-        return float(FTestAnovaPower().solve_power(None, nobs=n * groups, power=power, alpha=alpha, k_groups=groups))
+    try:
+        if kind == "t":
+            return float(TTestIndPower().solve_power(None, nobs1=n, power=power, alpha=alpha))
+        if kind == "anova":
+            return float(FTestAnovaPower().solve_power(None, nobs=n * groups, power=power, alpha=alpha, k_groups=groups))
+    except (ValueError, RuntimeError):
+        return float("inf")            # too few observations for the solver: nothing is detectable
     if kind == "corr":
         if n <= 3:
             return 1.0
@@ -72,12 +75,12 @@ def power_table(df: pd.DataFrame, max_levels: int = 10) -> pd.DataFrame:
         if k == 2:
             d = min_detectable_effect("t", n)
             rows.append({"Comparison": f"groups of {c}", "Smallest group n": int(n),
-                         "Smallest effect detectable (80% power)": round(d, 2), "Measure": "Cohen's d",
+                         "Smallest effect detectable (80% power)": round(d, 2) if np.isfinite(d) else "n too small", "Measure": "Cohen's d",
                          "Verdict": _effect_verdict(d, "d")})
         else:
             f = min_detectable_effect("anova", n, groups=k)
             rows.append({"Comparison": f"groups of {c}", "Smallest group n": int(n),
-                         "Smallest effect detectable (80% power)": round(f, 2), "Measure": "Cohen's f",
+                         "Smallest effect detectable (80% power)": round(f, 2) if np.isfinite(f) else "n too small", "Measure": "Cohen's f",
                          "Verdict": _effect_verdict(f, "f")})
     n_all = int(df.dropna(how="all").shape[0])
     r = min_detectable_effect("corr", n_all)
@@ -89,6 +92,8 @@ def power_table(df: pd.DataFrame, max_levels: int = 10) -> pd.DataFrame:
 
 def _effect_verdict(v: float, kind: str) -> str:
     small, medium, large = {"d": (0.2, 0.5, 0.8), "f": (0.1, 0.25, 0.4), "r": (0.1, 0.3, 0.5)}[kind]
+    if not np.isfinite(v):
+        return "Underpowered: even large effects may be missed"
     if v <= small * 1.25:
         return "Sensitive: can find small effects"
     if v <= medium:

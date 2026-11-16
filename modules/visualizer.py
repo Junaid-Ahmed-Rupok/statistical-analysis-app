@@ -46,6 +46,8 @@ class Visualizer:
 
     def histograms(self, df: pd.DataFrame, max_cols: int = 4):
         numeric_cols = df.select_dtypes(include=[np.number]).columns[:12]
+        if len(numeric_cols) == 0:
+            return None
         n_cols = min(len(numeric_cols), max_cols)
         n_rows = (len(numeric_cols) + n_cols - 1) // n_cols
 
@@ -82,6 +84,8 @@ class Visualizer:
 
     def boxplots(self, df: pd.DataFrame):
         numeric_cols = df.select_dtypes(include=[np.number]).columns[:12]
+        if len(numeric_cols) == 0:
+            return None
 
         fig, ax = plt.subplots(figsize=(12, max(6, len(numeric_cols) * 0.5)))
         fig.patch.set_facecolor('white')
@@ -178,6 +182,8 @@ class Visualizer:
 
     def qq_plots(self, df: pd.DataFrame):
         numeric_cols = df.select_dtypes(include=[np.number]).columns[:6]
+        if len(numeric_cols) == 0:
+            return None
 
         n_cols = min(len(numeric_cols), 3)
         n_rows = (len(numeric_cols) + n_cols - 1) // n_cols
@@ -257,6 +263,8 @@ class Visualizer:
 
     def bar_charts(self, df: pd.DataFrame):
         numeric_cols = df.select_dtypes(include=[np.number]).columns[:8]
+        if len(numeric_cols) == 0:
+            return None
 
         n_cols = min(len(numeric_cols), 3)
         n_rows = (len(numeric_cols) + n_cols - 1) // n_cols

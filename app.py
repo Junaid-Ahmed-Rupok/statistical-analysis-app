@@ -16,7 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal, review
+from modules import licensing, advisor, writeup, seal, review, csv_loader
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -292,6 +292,33 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+
+# ── Safety nets: one bad dataset must never take the whole page down ──
+import contextlib
+import traceback as _tb
+
+
+def safe_dataframe(data, **kwargs):
+    """st.dataframe that falls back to the unstyled table if styling fails."""
+    try:
+        return st.dataframe(data, **kwargs)
+    except Exception:
+        plain = getattr(data, "data", data)
+        return st.dataframe(plain, **kwargs)
+
+
+@contextlib.contextmanager
+def _guard(section: str = "This section"):
+    """Show a clear message instead of a stack trace if a tab fails on unusual data."""
+    try:
+        yield
+    except Exception as exc:                      # Streamlit's rerun/stop signals are BaseExceptions
+        _tb.print_exc()
+        st.warning(f"{section} could not be completed for this dataset. "
+                   "Other tabs are unaffected.")
+        with st.expander("Technical details"):
+            st.code(f"{type(exc).__name__}: {exc}")
+
 # ════════════════════════════════════════════════════════════════
 # TABS
 # ════════════════════════════════════════════════════════════════
@@ -313,7 +340,7 @@ tabs = st.tabs([
 # ════════════════════════════════════════════════════════════════
 # TAB 1 — Upload & Overview
 # ════════════════════════════════════════════════════════════════
-with tabs[0]:
+with tabs[0], _guard():
     st.markdown("### 📂 Upload Your Dataset")
 
     uploaded_file = st.file_uploader(
@@ -359,11 +386,7 @@ with tabs[0]:
 
         try:
             if uploaded_file is not None:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                except UnicodeDecodeError:
-                    uploaded_file.seek(0)  # Excel on Windows often saves CSVs as cp1252
-                    df = pd.read_csv(uploaded_file, encoding="latin-1")
+                df = csv_loader.read_csv(uploaded_file)
                 st.session_state.uploaded_df = df
                 st.session_state.overview = preprocessor.get_overview(df)
 
@@ -378,11 +401,11 @@ with tabs[0]:
 
             st.markdown("---")
             st.markdown("### Data Preview")
-            st.dataframe(df.head(100), width="stretch")
+            safe_dataframe(df.head(100), width="stretch")
 
             st.markdown("### Missing Values Analysis")
             if not overview['missing_table'].empty:
-                st.dataframe(
+                safe_dataframe(
                     overview['missing_table'].style.map(
                         _color_missing, subset=['Missing Percentage']
                     ),
@@ -407,15 +430,21 @@ with tabs[0]:
             </div>
             """, unsafe_allow_html=True)
 
+        except csv_loader.CSVError as e:
+            st.session_state.uploaded_df = None
+            st.session_state.overview = None
+            st.error(f"Could not read this file: {e}")
         except Exception as e:
-            st.error(f"Error loading file: {str(e)}")
+            st.session_state.uploaded_df = None
+            st.session_state.overview = None
+            st.error(f"Could not process this file ({type(e).__name__}). Check that it is a valid CSV and try again.")
     else:
         st.info("👆 Upload a CSV file or click 'Load Sample Dataset' to get started!")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 2 — Preprocessing
 # ════════════════════════════════════════════════════════════════
-with tabs[1]:
+with tabs[1], _guard():
     st.markdown("### ⚙️ Data Preprocessing")
 
     if st.session_state.uploaded_df is not None:
@@ -496,7 +525,7 @@ with tabs[1]:
 # ════════════════════════════════════════════════════════════════
 # TAB 3 — EDA
 # ════════════════════════════════════════════════════════════════
-with tabs[2]:
+with tabs[2], _guard():
     st.markdown("### 📊 Exploratory Data Analysis")
     st.markdown("*Column summaries · Distributions · Ranked correlations · Missing patterns*")
 
@@ -512,7 +541,7 @@ with tabs[2]:
             unique      = col_data.nunique()
             dtype       = str(col_data.dtype)
 
-            if pd.api.types.is_numeric_dtype(col_data):
+            if pd.api.types.is_numeric_dtype(col_data) and not pd.api.types.is_bool_dtype(col_data):
                 summary_data.append({
                     'Column':    col,
                     'Type':      dtype,
@@ -539,7 +568,7 @@ with tabs[2]:
                     'Top Freq':  top_freq,
                 })
 
-        st.dataframe(pd.DataFrame(summary_data), width="stretch")
+        safe_dataframe(pd.DataFrame(summary_data), width="stretch")
         st.markdown("---")
 
         st.markdown("#### 📈 Numeric Column Distributions")
@@ -618,7 +647,7 @@ with tabs[2]:
                 if v >= 0.4:  return 'background-color: #FFF3CD; color: #F0A500; font-weight:600'
                 return 'color: #6C757D'
 
-            st.dataframe(
+            safe_dataframe(
                 corr_pairs.style.map(_color_corr, subset=['Pearson r']),
                 width="stretch"
             )
@@ -646,7 +675,7 @@ with tabs[2]:
 # ════════════════════════════════════════════════════════════════
 # TAB 4 — Statistical Tests
 # ════════════════════════════════════════════════════════════════
-with tabs[3]:
+with tabs[3], _guard():
     st.markdown("### 🧪 Comprehensive Statistical Testing")
     st.markdown("*Scale-aware tests · Effect sizes · FDR correction · OLS regression*")
 
@@ -669,7 +698,7 @@ with tabs[3]:
                     styled = norm.style.map(_green, subset=['Normal'])
                     if 'Sig. after FDR' in norm.columns:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                    st.dataframe(styled, width="stretch")
+                    safe_dataframe(styled, width="stretch")
 
             with st.expander("🔗 Correlation Analysis — Pearson & Spearman with Effect Sizes & FDR", expanded=True):
                 corr_col_name = _corr_col(sr.get('pearson_correlation', pd.DataFrame()))
@@ -688,7 +717,7 @@ with tabs[3]:
                                 styled = styled.map(_color_effect, subset=['Effect Size'])
                             if 'Sig. after FDR' in top.columns:
                                 styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                            st.dataframe(styled, width="stretch")
+                            safe_dataframe(styled, width="stretch")
 
             for name, key, extra_cols in [
                 ("📐 Chi-Square Independence Test + Cramér's V Effect Size", 'chi_square',   ['Effect Size']),
@@ -700,11 +729,11 @@ with tabs[3]:
                 if not df_test.empty:
                     with st.expander(name, expanded=False):
                         sig_c  = _sig_col(df_test)
-                        styled = df_test.style.map(_green, subset=[sig_c])
+                        styled = df_test.style.map(_green, subset=[sig_c]) if sig_c in df_test.columns else df_test.style
                         for ec in extra_cols:
                             if ec in df_test.columns:
                                 styled = styled.map(_color_effect, subset=[ec])
-                        st.dataframe(styled, width="stretch")
+                        safe_dataframe(styled, width="stretch")
 
             vif = sr.get('vif', pd.DataFrame())
             if not vif.empty:
@@ -716,7 +745,7 @@ with tabs[3]:
                                        'color:#F0A500'                  if v == 'Moderate' else
                                        'color:#1E8449'),
                             subset=['κ Risk'])
-                    st.dataframe(styled, width="stretch")
+                    safe_dataframe(styled, width="stretch")
                     if 'Condition Number (κ)' in vif.columns:
                         kappa  = vif['Condition Number (κ)'].iloc[0]
                         k_risk = vif['κ Risk'].iloc[0]
@@ -744,14 +773,14 @@ with tabs[3]:
                     styled = reg_df.style.map(_green, subset=[sig_c])
                     if 'Sig. after FDR' in reg_df.columns:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
-                    st.dataframe(styled, width="stretch")
+                    safe_dataframe(styled, width="stretch")
     else:
         st.info("Please preprocess your data in the 'Preprocessing' tab first.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 5 — Visualizations
 # ════════════════════════════════════════════════════════════════
-with tabs[4]:
+with tabs[4], _guard():
     st.markdown("### 📈 Interactive Visualizations")
 
     if st.session_state.cleaned_df is not None:
@@ -794,7 +823,7 @@ with tabs[4]:
 # ════════════════════════════════════════════════════════════════
 # TAB 6 — AI Insights
 # ════════════════════════════════════════════════════════════════
-with tabs[5]:
+with tabs[5], _guard():
     st.markdown("### 💡 What Your Data Is Telling You")
 
     if st.session_state.cleaned_df is not None and st.session_state.stats_results is not None:
@@ -877,7 +906,7 @@ with tabs[5]:
 # ════════════════════════════════════════════════════════════════
 # TAB 7 — PDF Report
 # ════════════════════════════════════════════════════════════════
-with tabs[6]:
+with tabs[6], _guard():
     st.markdown("### 📄 Generate Professional PDF Report")
 
     if st.session_state.cleaned_df is not None and st.session_state.stats_results is not None:
@@ -1000,7 +1029,7 @@ with tabs[6]:
 # ════════════════════════════════════════════════════════════════
 # TAB 8 — ML Studio
 # ════════════════════════════════════════════════════════════════
-with tabs[7]:
+with tabs[7], _guard():
     st.markdown("### 🤖 Machine Learning Studio")
     st.markdown("*Auto-detects task · 6 models · 5-fold CV · Permutation importance · Live predictions*")
 
@@ -1095,7 +1124,7 @@ with tabs[7]:
                 if 'Error' not in results.columns
                 else results
             )
-            st.dataframe(styled_results, width="stretch")
+            safe_dataframe(styled_results, width="stretch")
 
             if ml_engine.feature_importance is not None:
                 st.markdown("#### 📈 Feature Importance")
@@ -1168,7 +1197,7 @@ with tabs[7]:
                 fair_df, fair_warn = None, []
             if fair_df is not None and not fair_df.empty:
                 st.markdown("**Performance by group (holdout set)**")
-                st.dataframe(fair_df, width="stretch", hide_index=True)
+                safe_dataframe(fair_df, width="stretch", hide_index=True)
                 if fair_warn:
                     for w in fair_warn[:6]:
                         st.warning(f"⚖️ {w}")
@@ -1265,7 +1294,7 @@ with tabs[7]:
                                     out["confidence"] = ml_engine.predict_proba(new_df).max(axis=1).round(4)
                                 except Exception:
                                     pass
-                            st.dataframe(out.head(100), width="stretch")
+                            safe_dataframe(out.head(100), width="stretch")
                             st.download_button("⬇️ Download predictions (CSV)",
                                                out.to_csv(index=False).encode("utf-8"),
                                                "predictions.csv", "text/csv", key="ml_batch_dl")
@@ -1289,7 +1318,7 @@ def _advisor_tables(df: pd.DataFrame):
     return advisor.group_comparisons(df), advisor.correlation_advice(df)
 
 
-with tabs[8]:
+with tabs[8], _guard():
     st.markdown("### 🩺 Assumption Doctor")
     st.markdown("*Checks the assumptions behind every test, switches to a safer one when they fail, "
                 "and tells you why — in plain English.*")
@@ -1309,13 +1338,13 @@ with tabs[8]:
                           "P-Value", "P-Value (FDR)", "Effect Size", "Effect Measure", "Effect Label",
                           "Sig. after FDR"]]
             _pcfg = {c: st.column_config.NumberColumn(format="%.4f") for c in ("P-Value", "P-Value (FDR)", "Statistic", "Effect Size")}
-            st.dataframe(show, width="stretch", hide_index=True, column_config=_pcfg)
+            safe_dataframe(show, width="stretch", hide_index=True, column_config=_pcfg)
             with st.expander("Why was each test chosen?"):
                 for _, r in g_tbl.iterrows():
                     st.markdown(f"**{r['Numeric Variable']} by {r['Grouping Variable']}** — {r['Why']}")
         if not c_tbl.empty:
             st.markdown("#### Correlations")
-            st.dataframe(c_tbl[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
+            safe_dataframe(c_tbl[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
                                 "P-Value (FDR)", "Effect Label", "Sig. after FDR"]],
                          width="stretch", hide_index=True,
                          column_config={c: st.column_config.NumberColumn(format="%.4f")
@@ -1327,7 +1356,7 @@ with tabs[8]:
 # ════════════════════════════════════════════════════════════════
 # TAB 10 — Thesis-ready write-up
 # ════════════════════════════════════════════════════════════════
-with tabs[9]:
+with tabs[9], _guard():
     st.markdown("### ✍️ Thesis-ready Write-up")
     st.markdown("*APA-style Methods and Results paragraphs, plus a script that reproduces every number.*")
     if st.session_state.cleaned_df is None or st.session_state.stats_results is None:
@@ -1361,7 +1390,7 @@ with tabs[9]:
 # ════════════════════════════════════════════════════════════════
 # TAB 11 — Statistician Review
 # ════════════════════════════════════════════════════════════════
-with tabs[10]:
+with tabs[10], _guard():
     st.markdown("## 🧑‍🏫 Statistician Review")
     st.caption("The questions a senior statistician asks before trusting any p-value: is the data independent, "
                "is the sample big enough, does the model fit, is anything hiding in the groups?")
@@ -1384,7 +1413,7 @@ with tabs[10]:
         st.markdown("### What can this data actually detect?")
         st.caption("Smallest effect each comparison could find with 80% power at α = .05. "
                    "A non-significant result only means 'no effect' if the data could have seen one.")
-        st.dataframe(rv["power"], width="stretch", hide_index=True)
+        safe_dataframe(rv["power"], width="stretch", hide_index=True)
 
         st.markdown("### Plan a study: how many observations do I need?")
         pc1, pc2, pc3, pc4 = st.columns(4)
@@ -1405,7 +1434,7 @@ with tabs[10]:
 # ════════════════════════════════════════════════════════════════
 # TAB 12 — About the developer
 # ════════════════════════════════════════════════════════════════
-with tabs[11]:
+with tabs[11], _guard():
     st.markdown("### 👨‍💻 About the Developer")
     st.markdown("""
     <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;">
