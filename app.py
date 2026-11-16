@@ -1,3 +1,4 @@
+import datetime as _dt
 import html as _html
 import io
 import time
@@ -673,7 +674,10 @@ with tabs[2], _guard():
                     'Top Freq':  top_freq,
                 })
 
-        safe_dataframe(pd.DataFrame(summary_data), width="stretch")
+        _sd = pd.DataFrame(summary_data)
+        if "Top Freq" in _sd:
+            _sd["Top Freq"] = pd.to_numeric(_sd["Top Freq"], errors="coerce").astype("Int64")
+        safe_dataframe(_sd.astype(object).where(_sd.notna(), "–"), width="stretch", hide_index=True)
         st.markdown("---")
 
         st.markdown("#### 📈 Numeric Column Distributions")
@@ -1660,9 +1664,9 @@ with tabs[11], _guard():
 
 # ── Footer ───────────────────────────────────────────────────────
 st.markdown("---")
-st.markdown("""
+st.markdown(f"""
 <div style="text-align:center;padding:20px;color:#6C757D;font-size:13px;
     font-family:'JetBrains Mono',monospace;">
-    Built with ❤️ using Streamlit &nbsp;|&nbsp; StatsPro v2.3 &nbsp;|&nbsp; © 2025
+    Built with ❤️ using Streamlit &nbsp;|&nbsp; StatsPro v2.3 &nbsp;|&nbsp; © {_dt.date.today().year}
 </div>
 """, unsafe_allow_html=True)

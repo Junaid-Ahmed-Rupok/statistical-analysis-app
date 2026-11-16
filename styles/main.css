@@ -182,9 +182,9 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 13px !important;
 }
 
-[data-testid="stMarkdownContainer"] > div[style*="linear-gradient"] span,
-[data-testid="stMarkdownContainer"] > div[style*="background:linear"] span,
-[data-testid="stMarkdownContainer"] > div[style*="background: linear"] span {
+[data-testid="stMarkdownContainer"] > div[style*="linear-gradient"] div[style*="display:flex"] > span,
+[data-testid="stMarkdownContainer"] > div[style*="background:linear"] div[style*="display:flex"] > span,
+[data-testid="stMarkdownContainer"] > div[style*="background: linear"] div[style*="display:flex"] > span {
     background: var(--bg-active) !important;
     background-color: var(--bg-active) !important;
     color: var(--em) !important;
@@ -917,3 +917,46 @@ span[class*="material-icons"] {
     letter-spacing: normal !important;
     text-transform: none !important;
 }
+
+
+/* ── Layout fixes ───────────────────────────────────
+   Heading "anchor link" icons add stray boxes next to titles. */
+[data-testid="stHeaderActionElements"] { display: none !important; }
+
+/* Expander header: icon and label on one row (the earlier span rule stacked them). */
+[data-testid="stExpander"] summary > span {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+[data-testid="stExpander"] summary > span > span { display: inline-flex !important; align-items: center !important; }
+[data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
+[data-testid="stSidebar"] [data-testid="stExpander"] summary > span { flex-wrap: nowrap !important; }
+
+/* ── File uploader: drop the stray help button, keep the dark theme ── */
+[data-testid="stFileUploader"] [data-testid="stTooltipIcon"] { display: none !important; }
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] label * { color: var(--text-primary) !important; font-family: var(--font-sans) !important; font-size: 14px !important; }
+[data-testid="stFileUploaderDropzone"] {
+    background: var(--bg-surface) !important;
+    border: 1px dashed var(--border-strong) !important;
+    border-radius: 8px !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover { border-color: var(--em) !important; }
+
+/* ── Message boxes: match the dark theme, colour only the left edge ── */
+[data-testid="stAlertContainer"] {
+    background: var(--bg-raised) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-left: 3px solid #5B9DF0 !important;
+    border-radius: 8px !important;
+}
+[data-testid="stAlertContainer"] p,
+[data-testid="stAlertContainer"] li,
+[data-testid="stAlertContainer"] strong,
+[data-testid="stAlertContainer"] code,
+[data-testid="stAlertContainer"] a { color: var(--text-primary) !important; }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) { border-left-color: #F0A500 !important; }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"])   { border-left-color: #E5534B !important; }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) { border-left-color: var(--em) !important; }
