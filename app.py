@@ -16,7 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal
+from modules import licensing, advisor, writeup, seal, review
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -306,6 +306,7 @@ tabs = st.tabs([
     "🤖 ML Studio",
     "🩺 Assumption Doctor",
     "✍️ Write-up",
+    "🧑‍🏫 Statistician Review",
     "👨‍💻 About",
 ])
 
@@ -1361,9 +1362,53 @@ with tabs[9]:
             upgrade_card("Reproducible script export")
 
 # ════════════════════════════════════════════════════════════════
-# TAB 11 — About the developer
+# TAB 11 — Statistician Review
 # ════════════════════════════════════════════════════════════════
 with tabs[10]:
+    st.markdown("## 🧑‍🏫 Statistician Review")
+    st.caption("The questions a senior statistician asks before trusting any p-value: is the data independent, "
+               "is the sample big enough, does the model fit, is anything hiding in the groups?")
+    if st.session_state.cleaned_df is None:
+        st.info("Run **Preprocessing** first, then come back here.")
+    else:
+        _rdf = st.session_state.cleaned_df
+        _rnum = [c for c in _rdf.select_dtypes(include=[np.number]).columns if _rdf[c].nunique() > 2]
+        _rtarget = st.selectbox("Outcome variable for model checks", _rnum, index=len(_rnum) - 1,
+                                key="review_target") if len(_rnum) >= 2 else None
+        rv = review.review(_rdf, _rtarget)
+        sev_icon = {"High": "🔴", "Medium": "🟠", "Low": "🟡", "OK": "🟢"}
+        (st.error if rv["counts"].get("High") else st.warning if rv["counts"].get("Medium") else st.success)(rv["verdict"])
+        for _, r in rv["findings"].iterrows():
+            with st.expander(f"{sev_icon[r['Severity']]} {r['Severity']} · {r['Area']} · {r['Finding']}",
+                             expanded=r["Severity"] == "High"):
+                st.markdown(f"**Why it matters.** {r['Why it matters']}")
+                st.markdown(f"**What to do.** {r['What to do']}")
+
+        st.markdown("### What can this data actually detect?")
+        st.caption("Smallest effect each comparison could find with 80% power at α = .05. "
+                   "A non-significant result only means 'no effect' if the data could have seen one.")
+        st.dataframe(rv["power"], width="stretch", hide_index=True)
+
+        st.markdown("### Plan a study: how many observations do I need?")
+        pc1, pc2, pc3, pc4 = st.columns(4)
+        kind_label = pc1.selectbox("Comparison", ["Two groups (t-test)", "3+ groups (ANOVA)", "Correlation"], key="pw_kind")
+        _k = {"Two groups (t-test)": "t", "3+ groups (ANOVA)": "anova", "Correlation": "corr"}[kind_label]
+        _def = {"t": 0.5, "anova": 0.25, "corr": 0.3}[_k]
+        _unit = {"t": "Cohen's d", "anova": "Cohen's f", "corr": "|r|"}[_k]
+        eff = pc2.number_input(f"Expected effect ({_unit})", 0.05, 0.99 if _k == "corr" else 3.0, _def, 0.05, key="pw_eff")
+        pwr = pc3.slider("Power", 0.5, 0.99, 0.8, 0.01, key="pw_pow")
+        grp = pc4.number_input("Groups", 3, 10, 3, key="pw_grp", disabled=_k != "anova")
+        need = review.sample_size(_k, eff, pwr, groups=int(grp))
+        st.success(f"You need about **{int(need):,}** {'observations in total' if _k == 'corr' else 'per group'} "
+                   f"to detect {_unit} = {eff:g} with {pwr:.0%} power at α = .05.")
+        st.caption("Rule of thumb for the expected effect: small / medium / large is d = 0.2 / 0.5 / 0.8, "
+                   "f = 0.1 / 0.25 / 0.4, r = 0.1 / 0.3 / 0.5. Use the smallest effect that would still matter.")
+        st.caption("These are screening checks, not a substitute for knowing how the data was collected.")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 12 — About the developer
+# ════════════════════════════════════════════════════════════════
+with tabs[11]:
     st.markdown("### 👨‍💻 About the Developer")
     st.markdown("""
     <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;">

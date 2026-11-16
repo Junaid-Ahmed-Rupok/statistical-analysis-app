@@ -148,7 +148,7 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ## Usage
 
-The app has 11 tabs, meant to be used roughly in order:
+The app has 12 tabs, meant to be used roughly in order:
 
 | Tab | Purpose |
 |---|---|
@@ -162,7 +162,8 @@ The app has 11 tabs, meant to be used roughly in order:
 | 8. ML Studio | Train 6 models, check uncertainty and fairness, make live predictions |
 | 9. Assumption Doctor | See which test fits your data and why |
 | 10. Write-up | APA-style Methods/Results text and a reproduce script |
-| 11. About | About the developer and how to get in touch |
+| 11. Statistician Review | Design, independence, confounding and model checks; power and sample-size planning |
+| 12. About | About the developer and how to get in touch |
 
 ---
 
@@ -170,7 +171,7 @@ The app has 11 tabs, meant to be used roughly in order:
 
 ```
 statistical-analysis-app/
-├── app.py                  # Main application (11 tabs)
+├── app.py                  # Main application (12 tabs)
 ├── requirements.txt        # Runtime dependencies
 ├── requirements-dev.txt    # Test dependencies
 ├── Dockerfile, run.sh, run.bat   # Run anywhere
@@ -184,6 +185,7 @@ statistical-analysis-app/
 │   ├── preprocessor.py     # Data cleaning pipeline
 │   ├── statistics.py       # Statistical testing engine
 │   ├── advisor.py          # Assumption Doctor (picks the right test)
+│   ├── review.py           # Statistician Review (design checks, power, model diagnostics)
 │   ├── writeup.py          # APA write-up + reproduce.py generator
 │   ├── seal.py             # Integrity Seal + Honesty Ledger
 │   ├── visualizer.py       # Chart generation (15+ types)
