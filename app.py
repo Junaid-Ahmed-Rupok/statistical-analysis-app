@@ -1,3 +1,4 @@
+import html as _html
 import io
 import time
 from datetime import datetime
@@ -16,7 +17,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay
+from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay, privacy
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -316,6 +317,25 @@ with st.sidebar:
                 if checkout:
                     st.link_button("Buy Pro", checkout, width="stretch")
                 _bkash_box("sb")
+    st.markdown("---")
+    with st.expander("🔒 Privacy"):
+        st.markdown(
+            "- Your file is processed **in memory** for this session only.\n"
+            "- StatsPro does **not** save it, write it to a database, or share it.\n"
+            "- No tracking or ads.\n"
+            "- Closing the tab ends the session.\n"
+            "- This demo runs on Streamlit Community Cloud, so your file passes through "
+            "their servers while it is processed. For confidential data, run StatsPro on "
+            "your own computer (see the README).\n"
+            "- Please remove names, phone numbers and IDs before uploading.")
+    if st.button("🗑️ Clear my data now", key="clear_data_btn", width="stretch"):
+        _keep = {"pro_active", "autopay_key", "autopay_tries", "uploader_n"}
+        for _k in list(st.session_state.keys()):
+            if _k not in _keep:
+                del st.session_state[_k]
+        st.session_state["uploader_n"] = st.session_state.get("uploader_n", 0) + 1
+        st.cache_data.clear()
+        st.rerun()
     sponsor = licensing.get_setting("SPONSOR_URL")
     if sponsor:
         st.link_button("❤️ Sponsor this project", sponsor, width="stretch")
@@ -408,6 +428,7 @@ with tabs[0], _guard():
 
     uploaded_file = st.file_uploader(
         "Drag & drop your CSV file here or click to browse",
+        key=f"uploader_{st.session_state.get('uploader_n', 0)}",
         type=["csv"],
         help="Supports CSV files up to 200MB",
         label_visibility="visible"
@@ -457,6 +478,12 @@ with tabs[0], _guard():
 
             df      = st.session_state.uploaded_df
             overview = st.session_state.overview
+            _pii = privacy.pii_columns(df)
+            if _pii:
+                st.warning("**This file may contain personal data:** "
+                           + ", ".join(f"`{c}` ({why})" for c, why in _pii[:8])
+                           + ". You rarely need these for statistics. Consider removing or anonymising them "
+                             "before uploading, and make sure you have permission to use this data.")
 
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("📋 Total Rows",      f"{overview['rows']:,}")
@@ -916,7 +943,7 @@ with tabs[5], _guard():
                 </div>
                 """, unsafe_allow_html=True)
             with col2:
-                highlights = '<br>'.join([f"• {h}" for h in insights.get('highlights', [])[:3]])
+                highlights = '<br>'.join([f"• {_html.escape(str(h))}" for h in insights.get('highlights', [])[:3]])
                 st.markdown(f"""
                 <div style="background:white;padding:20px;border-radius:12px;
                     border:2px solid #F0A500;height:100%;">
@@ -925,7 +952,7 @@ with tabs[5], _guard():
                 </div>
                 """, unsafe_allow_html=True)
             with col3:
-                warn_items = '<br>'.join([f"• {w}" for w in insights.get('warnings', [])[:3]])
+                warn_items = '<br>'.join([f"• {_html.escape(str(w))}" for w in insights.get('warnings', [])[:3]])
                 st.markdown(f"""
                 <div style="background:white;padding:20px;border-radius:12px;
                     border:2px solid #C0392B;height:100%;">
@@ -962,7 +989,7 @@ with tabs[5], _guard():
                 <div style="background:linear-gradient(135deg,#0A2342,#1B4F72);color:white;
                     padding:20px;border-radius:12px;margin-top:20px;">
                     <h4 style="color:#34D399;">💡 Recommendation</h4>
-                    <p>{insights['recommendation']}</p>
+                    <p>{_html.escape(str(insights['recommendation']))}</p>
                 </div>
                 """, unsafe_allow_html=True)
     else:
@@ -1307,7 +1334,7 @@ with tabs[7], _guard():
                             font-size:14px;">Prediction:</span>
                         <span style="color:#fff;font-family:'JetBrains Mono',monospace;
                             font-size:24px;font-weight:700;margin-left:10px;">
-                            {prediction}
+                            {_html.escape(str(prediction))}
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
