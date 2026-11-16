@@ -1297,7 +1297,8 @@ with tabs[8]:
             show = g_tbl[["Numeric Variable", "Grouping Variable", "Recommended Test", "Statistic",
                           "P-Value", "P-Value (FDR)", "Effect Size", "Effect Measure", "Effect Label",
                           "Sig. after FDR"]]
-            st.dataframe(show, width="stretch", hide_index=True)
+            _pcfg = {c: st.column_config.NumberColumn(format="%.4f") for c in ("P-Value", "P-Value (FDR)", "Statistic", "Effect Size")}
+            st.dataframe(show, width="stretch", hide_index=True, column_config=_pcfg)
             with st.expander("Why was each test chosen?"):
                 for _, r in g_tbl.iterrows():
                     st.markdown(f"**{r['Numeric Variable']} by {r['Grouping Variable']}** — {r['Why']}")
@@ -1305,7 +1306,9 @@ with tabs[8]:
             st.markdown("#### Correlations")
             st.dataframe(c_tbl[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
                                 "P-Value (FDR)", "Effect Label", "Sig. after FDR"]],
-                         width="stretch", hide_index=True)
+                         width="stretch", hide_index=True,
+                         column_config={c: st.column_config.NumberColumn(format="%.4f")
+                                        for c in ("r", "P-Value", "P-Value (FDR)")})
             with st.expander("Why Pearson or Spearman?"):
                 for _, r in c_tbl.iterrows():
                     st.markdown(f"**{r['Variable 1']} ~ {r['Variable 2']}** — {r['Why']}")

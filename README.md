@@ -17,6 +17,25 @@ Turn raw CSV data into professional statistical reports — no code required.
 
 ---
 
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/03-assumption-doctor.png" alt="Assumption Doctor"/><br/><sub><b>Assumption Doctor</b> — checks assumptions, switches to a safer test, explains why</sub></td>
+    <td width="50%"><img src="docs/images/05-ml-trust-report.png" alt="ML Trust Report"/><br/><sub><b>ML Trust Report</b> — calibrated prediction intervals and fairness by group</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/04-writeup.png" alt="Thesis-ready write-up"/><br/><sub><b>Thesis-ready write-up</b> — APA Methods and Results, plus a script that reproduces every number</sub></td>
+    <td width="50%"><img src="docs/images/06-pdf-integrity-seal.png" alt="Integrity Seal"/><br/><sub><b>Integrity Seal</b> — SHA-256 fingerprint and QR code in every PDF report</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/01-upload-overview.png" alt="Upload and overview"/><br/><sub><b>Upload &amp; Overview</b> — data quality score at a glance</sub></td>
+    <td width="50%"><img src="docs/images/02-statistical-tests.png" alt="Statistical tests"/><br/><sub><b>Statistical Tests</b> — scale-aware tests with effect sizes and FDR correction</sub></td>
+  </tr>
+</table>
+
+---
+
 ## What is StatsPro?
 
 StatsPro is a production-ready Streamlit web app that takes any CSV file and delivers comprehensive exploratory data analysis, statistical hypothesis testing, automated machine learning, and professional PDF reports — all through a polished, code-free interface.
