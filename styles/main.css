@@ -902,3 +902,18 @@ hr {
     .stTabs [data-baseweb="tab"]      { padding: 8px 10px !important; font-size: 11px !important; }
     [data-testid="stFileUploader"]    { padding: 20px 14px !important; }
 }
+
+/* ── Keep Streamlit's icon font intact ──────────────
+   The global `* { font-family !important }` rule above would otherwise turn icon
+   ligatures (e.g. keyboard_arrow_right) into raw text. */
+[data-testid="stIconMaterial"],
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"],
+[data-testid="stSidebar"] [data-testid="stIconMaterial"],
+span[class*="material-symbols"],
+span[class*="material-icons"] {
+    font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Icons" !important;
+    font-feature-settings: "liga" !important;
+    -webkit-font-feature-settings: "liga" !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+}
