@@ -1598,8 +1598,17 @@ with tabs[10], _guard():
 # ════════════════════════════════════════════════════════════════
 with tabs[11], _guard():
     st.markdown("### 👨‍💻 About the Developer")
-    st.markdown("""
-    <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;">
+    _photo = Path(__file__).parent / "assets" / "developer.jpg"
+    _photo_html = ""
+    if _photo.exists():
+        import base64 as _b64
+        _photo_html = ('<img alt="Sarder Junaid Ahmed" src="data:image/jpeg;base64,'
+                       + _b64.b64encode(_photo.read_bytes()).decode() + '" '
+                       'style="width:132px;height:132px;border-radius:50%;object-fit:cover;'
+                       'border:3px solid #34D399;float:right;margin:0 0 12px 24px;">')
+    st.markdown(f"""
+    <div style="background:#141414;border:1px solid #242424;border-radius:10px;padding:28px;overflow:hidden;">
+        {_photo_html}
         <div style="color:#34D399;font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;">
             Sarder Junaid Ahmed
         </div>
