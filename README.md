@@ -151,17 +151,28 @@ The app has 11 tabs, meant to be used roughly in order:
 
 ```
 statistical-analysis-app/
-├── app.py                  # Main application (8 tabs)
-├── requirements.txt        # Dependencies
+├── app.py                  # Main application (11 tabs)
+├── requirements.txt        # Runtime dependencies
+├── requirements-dev.txt    # Test dependencies
+├── Dockerfile, run.sh, run.bat   # Run anywhere
+├── MONETIZATION.md         # Optional Pro licence setup
+├── index.html              # GitHub Pages landing page
+├── keepalive.py            # Keeps the Streamlit app awake (GitHub Actions)
+├── data/tips.csv           # Bundled sample dataset (works offline)
 ├── styles/
 │   └── main.css            # Dark theme CSS
-└── modules/
-    ├── preprocessor.py     # Data cleaning pipeline
-    ├── statistics.py       # Statistical testing engine
-    ├── visualizer.py       # Chart generation (15+ types)
-    ├── insights.py         # AI insights generator
-    ├── pdf_generator.py    # PDF report builder
-    └── ml_engine.py        # AutoML pipeline
+├── modules/
+│   ├── preprocessor.py     # Data cleaning pipeline
+│   ├── statistics.py       # Statistical testing engine
+│   ├── advisor.py          # Assumption Doctor (picks the right test)
+│   ├── writeup.py          # APA write-up + reproduce.py generator
+│   ├── seal.py             # Integrity Seal + Honesty Ledger
+│   ├── visualizer.py       # Chart generation (15+ types)
+│   ├── insights.py         # AI insights generator
+│   ├── pdf_generator.py    # PDF report builder
+│   ├── ml_engine.py        # AutoML pipeline + Trust Report
+│   └── licensing.py        # Optional Pro licence check
+└── tests/                  # pytest suite (run: pip install -r requirements-dev.txt && pytest)
 ```
 
 ---
