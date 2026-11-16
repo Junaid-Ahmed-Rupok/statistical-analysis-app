@@ -28,6 +28,7 @@ def test_gated_when_configured_and_unlocks_with_valid_key(monkeypatch):
     _run_to_ml(at)
     assert [m for m in at.markdown if "Batch prediction and model download is a Pro feature" in m.value]
     assert not [b for b in at.button if b.key == "pdf_btn"]
+    assert [m for m in at.markdown if "Cleaned CSV download is a Pro feature" in m.value]
 
     at.session_state["pro_active"] = True      # what a successful activation sets
     at.run(timeout=240)

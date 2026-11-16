@@ -5,7 +5,7 @@ nothing changes for visitors until you are ready.
 
 | Stream | What it is | Setup |
 |---|---|---|
-| **Pro licence** | Statistics, charts, preprocessing, AI insights and model training stay free. **PDF report, batch prediction and model download** unlock with a licence key. | ~20 min, below |
+| **Pro licence** | Statistics, charts, preprocessing, AI insights and model training stay free. **PDF report, cleaned CSV download, reproduce script, batch prediction and model download** unlock with a licence key. | ~20 min, below |
 | **Services** | "Work with me" card on the About tab (email quote request). Already live. | none |
 | **Sponsorship** | Optional "Sponsor" button in the sidebar. | set `SPONSOR_URL` |
 

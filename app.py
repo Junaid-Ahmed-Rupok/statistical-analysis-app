@@ -480,12 +480,15 @@ with tabs[1]:
 
         if st.session_state.cleaned_df is not None:
             st.markdown("---")
-            st.download_button(
-                label="📥 Download Cleaned CSV",
-                data=seal.csv_bytes(st.session_state.cleaned_df),
-                file_name="cleaned_data.csv",
-                mime="text/csv"
-            )
+            if has_pro():
+                st.download_button(
+                    label="📥 Download Cleaned CSV",
+                    data=seal.csv_bytes(st.session_state.cleaned_df),
+                    file_name="cleaned_data.csv",
+                    mime="text/csv"
+                )
+            else:
+                upgrade_card("Cleaned CSV download")
     else:
         st.info("Please upload data in the 'Upload & Overview' tab first.")
 
@@ -568,12 +571,22 @@ with tabs[2]:
                 fig_cols = st.columns(len(batch))
                 for j, col in enumerate(batch):
                     with fig_cols[j]:
-                        top_n = df[col].value_counts().nlargest(10)
+                        vc = df[col].value_counts()
+                        if len(vc) > 1 and vc.iloc[0] == 1:
+                            st.markdown(f"**{col}**")
+                            st.caption(f"{len(vc):,} distinct values, none repeated: this looks like an "
+                                       "ID or free-text column, so a frequency chart would not be informative.")
+                            continue
+                        top_n = vc.nlargest(10)
+                        labels = [" ".join(str(v).split())[:22] + ("…" if len(" ".join(str(v).split())) > 22 else "")
+                                  for v in top_n.index]
                         fig, ax = plt.subplots(figsize=(4, 3))
-                        ax.barh(top_n.index[::-1], top_n.values[::-1],
+                        ax.barh(labels[::-1], top_n.values[::-1],
                                 color='#34D399', edgecolor='#111')
+                        ax.tick_params(axis='y', labelsize=8)
                         ax.set_title(col, fontsize=10, fontweight='bold', color='#444')
                         ax.set_xlabel('Count')
+                        fig.tight_layout()
                         st.pyplot(fig)
                         plt.close(fig)
         else:
@@ -1335,8 +1348,9 @@ with tabs[9]:
         d1, d2, d3 = st.columns(3)
         d1.download_button("⬇️ Write-up (Markdown)", wu["markdown"].encode("utf-8"),
                            "statspro_writeup.md", "text/markdown", key="wu_md_dl", width="stretch")
-        d2.download_button("⬇️ Cleaned data (CSV)", seal.csv_bytes(_df),
-                           "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
+        if has_pro():
+            d2.download_button("⬇️ Cleaned data (CSV)", seal.csv_bytes(_df),
+                               "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
         if has_pro():
             script = writeup.build_script(_df.columns, st.session_state.stats_results, g_tbl, c_tbl)
             d3.download_button("⬇️ Reproduce script (.py)", script.encode("utf-8"),

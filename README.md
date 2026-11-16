@@ -107,7 +107,7 @@ Ten tests, all with **Benjamini-Hochberg FDR correction** to control false posit
 ### Export Options
 - **PDF Report** — professional cover page, KPI cards, embedded charts, AI insights, page numbers, and confidentiality watermarks
 - **Excel Report** — all data and test results in separate sheets
-- **Cleaned CSV** — preprocessed data ready for downstream use
+- **Cleaned CSV** — preprocessed data ready for downstream use (Pro)
 
 ---
 
