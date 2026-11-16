@@ -706,6 +706,22 @@ class MLEngine:
 
     _FORMAT = "statspro-mlengine-v1"
 
+    @classmethod
+    def adopt(cls, obj) -> "MLEngine":
+        """Return a current-class engine carrying *obj*'s state.
+
+        After a redeploy or hot reload a browser session can still hold an engine built
+        from an older copy of this class (missing newer methods). Copying its plain
+        state into a fresh instance keeps the trained models and avoids AttributeError.
+        """
+        if isinstance(obj, cls) and all(hasattr(obj, m) for m in ("to_bytes", "_payload")):
+            return obj
+        fresh = cls()
+        state = getattr(obj, "__dict__", None)
+        if isinstance(state, dict):
+            fresh.__dict__.update(state)
+        return fresh
+
     def _payload(self) -> dict:
         # Store the plain state, not the object. Pickling the instance records its
         # class by reference, which fails when Streamlit has reloaded this module

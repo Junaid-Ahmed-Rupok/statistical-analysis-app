@@ -67,3 +67,18 @@ def test_model_export_survives_module_reload(tmp_path):
     loaded = me.MLEngine.load(path)
     row = df.drop(columns="y").iloc[:5]
     assert np.allclose(loaded.predict(row), eng.predict(row))
+
+
+def test_stale_engine_is_adopted_with_state_kept():
+    import numpy as np, pandas as pd
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({"a": rng.normal(size=100), "b": rng.normal(size=100)})
+    df["y"] = df["a"] + rng.normal(size=100)
+    eng = MLEngine(); eng.run(df, "y")
+
+    class Old:                                   # an engine from an older deploy: no to_bytes
+        pass
+    old = Old(); old.__dict__.update(eng.__dict__)
+    new = MLEngine.adopt(old)
+    assert isinstance(new, MLEngine) and new.best_model_name == eng.best_model_name
+    assert len(new.to_bytes()) > 0

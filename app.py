@@ -79,6 +79,7 @@ analyzer     = st.session_state.analyzer
 visualizer   = st.session_state.visualizer
 insights_gen = st.session_state.insights_gen
 pdf_gen      = st.session_state.pdf_gen
+st.session_state.ml_engine = MLEngine.adopt(st.session_state.ml_engine)
 ml_engine    = st.session_state.ml_engine
 
 # ── Styler helpers ───────────────────────────────────────────────
