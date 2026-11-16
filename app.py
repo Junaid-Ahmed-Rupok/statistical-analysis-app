@@ -1273,10 +1273,7 @@ with tabs[7]:
                         st.error(f"Batch prediction failed: {e}")
 
                 st.markdown("#### 💾 Export Model")
-                import io, joblib
-                buf = io.BytesIO()
-                joblib.dump(ml_engine, buf)
-                st.download_button("⬇️ Download trained model (.joblib)", buf.getvalue(),
+                st.download_button("⬇️ Download trained model (.joblib)", ml_engine.to_bytes(),
                                    "statspro_model.joblib", "application/octet-stream",
                                    key="ml_model_dl")
                 st.caption("Load with MLEngine.load(path) from this repo's modules/ml_engine.py. "

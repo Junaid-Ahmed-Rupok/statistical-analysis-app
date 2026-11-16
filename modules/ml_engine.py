@@ -704,12 +704,28 @@ class MLEngine:
 
     # ── Persistence ───────────────────────────────────────────────────────────
 
+    _FORMAT = "statspro-mlengine-v1"
+
+    def _payload(self) -> dict:
+        # Store the plain state, not the object. Pickling the instance records its
+        # class by reference, which fails when Streamlit has reloaded this module
+        # ("not the same object as modules.ml_engine.MLEngine").
+        return {"format": self._FORMAT, "state": dict(self.__dict__)}
+
+    def to_bytes(self) -> bytes:
+        import io
+        buf = io.BytesIO()
+        joblib.dump(self._payload(), buf)
+        return buf.getvalue()
+
     def save(self, path: str):
-        joblib.dump(self, path)
+        joblib.dump(self._payload(), path)
 
     @classmethod
     def load(cls, path: str) -> "MLEngine":
-        engine = joblib.load(path)
-        if not isinstance(engine, cls):
-            raise TypeError(f"Expected MLEngine, got {type(engine).__name__}.")
+        payload = joblib.load(path)
+        if not (isinstance(payload, dict) and payload.get("format") == cls._FORMAT):
+            raise TypeError("Not a StatsPro model file.")
+        engine = cls.__new__(cls)
+        engine.__dict__.update(payload["state"])
         return engine

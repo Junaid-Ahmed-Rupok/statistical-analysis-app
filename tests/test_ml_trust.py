@@ -50,3 +50,20 @@ def test_too_good_to_be_true_note(data):
     d = data.copy(); d["copy"] = d["y"] * 1.0001
     e = MLEngine(); e.run(d, "y", features=["x", "copy"])
     assert any("almost perfect" in n for n in e.notes)
+
+
+def test_model_export_survives_module_reload(tmp_path):
+    """Streamlit reloads modules; exporting must not depend on class identity."""
+    import importlib
+    import numpy as np, pandas as pd
+    from modules import ml_engine as me
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({"a": rng.normal(size=120), "b": rng.normal(size=120)})
+    df["y"] = 2 * df["a"] + rng.normal(size=120)
+    eng = me.MLEngine(); eng.run(df, "y")
+    importlib.reload(me)                         # old instance's class is now a different object
+    path = tmp_path / "m.joblib"
+    path.write_bytes(eng.to_bytes())
+    loaded = me.MLEngine.load(path)
+    row = df.drop(columns="y").iloc[:5]
+    assert np.allclose(loaded.predict(row), eng.predict(row))
