@@ -99,6 +99,7 @@ BKASH_NUMBER   = "01XXXXXXXXX"
 LICENSE_SECRET = "make-up-a-long-random-string-at-least-16-chars"   # keep private
 BKASH_PLANS    = "7 days: 199 BDT | 30 days: 299 BDT"               # shown to buyers
 BKASH_CONTACT  = "junaidahmedrupok@gmail.com"                        # optional
+WHATSAPP_NUMBER = "8801XXXXXXXXX"                                   # optional, adds a WhatsApp button (country code, no +)
 ```
 
 `LICENSE_SECRET` never goes in the repo. Anyone who knows it can make keys, so

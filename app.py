@@ -190,7 +190,14 @@ def _bkash_box(ns: str = "x") -> None:
         st.caption("Having trouble? Email your TrxID and we will send a key by hand.")
     subject = _up.quote("StatsPro Pro payment (bKash)")
     body = _up.quote("bKash TrxID: \nAmount: \nPlan (7 days / 30 days): \nMy email: \n")
-    st.link_button("✉️ Send payment details", f"mailto:{contact}?subject={subject}&body={body}", width="stretch")
+    b1, b2 = st.columns(2)
+    b1.link_button("✉️ Gmail", "https://mail.google.com/mail/?view=cm&fs=1"
+                   f"&to={_up.quote(contact)}&su={subject}&body={body}", width="stretch")
+    wa = "".join(ch for ch in licensing.get_setting("WHATSAPP_NUMBER") if ch.isdigit())
+    if wa:
+        wa_text = _up.quote("StatsPro Pro payment. bKash TrxID: ")
+        b2.link_button("💬 WhatsApp", f"https://wa.me/{wa}?text={wa_text}", width="stretch")
+    st.caption(f"Or email {contact} from any mail app.")
 
 
 def has_pro() -> bool:
