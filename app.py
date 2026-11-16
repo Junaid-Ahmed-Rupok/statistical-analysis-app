@@ -16,7 +16,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal, review, csv_loader
+from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -154,7 +154,7 @@ def _activate(key: str) -> tuple:
     return _check_license(key)
 
 
-def _bkash_box() -> None:
+def _bkash_box(ns: str = "x") -> None:
     """Instructions for paying by bKash. Only shown when bKash is configured."""
     if not licensing.bkash_enabled():
         return
@@ -164,8 +164,30 @@ def _bkash_box() -> None:
     contact = licensing.get_setting("BKASH_CONTACT") or licensing.get_setting("HIRE_EMAIL") or "junaidahmedrupok@gmail.com"
     st.markdown(f"**Pay with bKash**  \n"
                 f"1. Send money to **{number}** (Send Money)." + (f"  \n   {plans}" if plans else "") +
-                "  \n2. Email your bKash **TrxID** and the email you want the key sent to."
-                "  \n3. You will receive a licence key, usually within a few hours. Paste it here.")
+                ("  \n2. Enter your bKash **TrxID** below to get your key instantly." if autopay.enabled() else
+                 "  \n2. Email your bKash **TrxID** and the email you want the key sent to."
+                 "  \n3. You will receive a licence key, usually within a few hours. Paste it here."))
+    if autopay.enabled():
+        st.markdown("**Already paid? Get your key instantly:**")
+        trx_in = st.text_input("bKash TrxID", key=f"autopay_trx_{ns}", placeholder="e.g. 9AB1C2D3EF")
+        if st.button("Get my key", key=f"autopay_btn_{ns}", type="primary"):
+            import time as _t
+            tries = [t for t in st.session_state.get("autopay_tries", []) if _t.time() - t < 600]
+            if len(tries) >= 5:
+                st.warning("Too many attempts. Please wait a few minutes and try again.")
+            else:
+                st.session_state.autopay_tries = tries + [_t.time()]
+                try:
+                    ok, msg, key = autopay.redeem(trx_in)
+                except autopay.AutopayError as exc:
+                    ok, msg, key = False, str(exc), None
+                if ok:
+                    st.session_state.autopay_key = key
+                    st.session_state.pro_active = True
+                    st.rerun()
+                else:
+                    st.error(msg)
+        st.caption("Having trouble? Email your TrxID and we will send a key by hand.")
     subject = _up.quote("StatsPro Pro payment (bKash)")
     body = _up.quote("bKash TrxID: \nAmount: \nPlan (7 days / 30 days): \nMy email: \n")
     st.link_button("✉️ Send payment details", f"mailto:{contact}?subject={subject}&body={body}", width="stretch")
@@ -197,7 +219,7 @@ def upgrade_card(feature: str) -> None:
     c2.caption("Already bought it? Enter your key in the sidebar → 🔑 Pro license.")
     if licensing.bkash_enabled():
         with st.expander("🇧🇩 Pay with bKash"):
-            _bkash_box()
+            _bkash_box("card")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -268,6 +290,9 @@ with st.sidebar:
         st.markdown("---")
         if st.session_state.get("pro_active"):
             st.success("💎 Pro active")
+            if st.session_state.get("autopay_key"):
+                st.caption("Your licence key. Save it to reactivate later:")
+                st.code(st.session_state.autopay_key, language=None)
         else:
             with st.expander("🔑 Pro license"):
                 key_in = st.text_input("License key", type="password", key="license_key_input")
@@ -283,7 +308,7 @@ with st.sidebar:
                 checkout = licensing.get_setting("CHECKOUT_URL")
                 if checkout:
                     st.link_button("Buy Pro", checkout, width="stretch")
-                _bkash_box()
+                _bkash_box("sb")
     sponsor = licensing.get_setting("SPONSOR_URL")
     if sponsor:
         st.link_button("❤️ Sponsor this project", sponsor, width="stretch")
