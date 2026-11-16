@@ -141,3 +141,17 @@ or every key issued so far stops working.
 Keep a note of which key you gave to which buyer, otherwise you will not know which one
 to cancel. (The `.license_secret` file never leaves your laptop; keep your own list of
 keys and buyers in a private spreadsheet.)
+
+
+## What is free and what is Pro
+
+**Free:** upload, preprocessing, EDA, charts, the core statistical tests, ML Studio training with
+the model comparison and all the diagnostic charts (ROC, precision-recall, calibration, confusion
+matrix, residuals, learning curve), the first 3 rows of the Assumption Doctor, a preview of the
+write-up, and the Statistician Review verdict.
+
+**Pro:** full Assumption Doctor results with explanations, the thesis write-up and reproduce
+script, Statistician Review details and the sample-size planner, the ML Trust Report (prediction
+intervals, fairness by group), live and batch prediction, model download, PDF report, cleaned CSV.
+
+To move a feature between the tiers, change its `has_pro()` check in `app.py`.

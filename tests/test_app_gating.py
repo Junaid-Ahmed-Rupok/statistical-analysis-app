@@ -26,7 +26,7 @@ def test_gated_when_configured_and_unlocks_with_valid_key(monkeypatch):
     monkeypatch.setenv("LS_STORE_ID", "7")
     at = AppTest.from_file(APP, default_timeout=240).run()
     _run_to_ml(at)
-    assert [m for m in at.markdown if "Batch prediction and model download is a Pro feature" in m.value]
+    assert [m for m in at.markdown if "ML Trust Report, live prediction, batch prediction and model download is a Pro feature" in m.value]
     assert not [b for b in at.button if b.key == "pdf_btn"]
     assert [m for m in at.markdown if "Cleaned CSV download is a Pro feature" in m.value]
 
@@ -96,3 +96,25 @@ def test_revoking_a_key_locks_an_active_session(monkeypatch):
     at.run(timeout=240)                              # the user's very next click
     assert not at.session_state["pro_active"]
     assert [m for m in at.markdown if "is a Pro feature" in m.value]
+
+
+def test_free_tier_split_when_configured(monkeypatch):
+    """Free: basics + 3 Doctor rows + write-up preview. Pro: the rest."""
+    monkeypatch.setenv("CHECKOUT_URL", "https://example.lemonsqueezy.com/buy/test")
+    monkeypatch.setenv("LS_STORE_ID", "7")
+    at = AppTest.from_file(APP, default_timeout=240).run()
+    next(b for b in at.button if "Load Sample Dataset" in b.label).click(); at.run()
+    for key in ("preprocess_btn", "run_stats_btn", "ml_train_btn"):
+        next(b for b in at.button if b.key == key).click(); at.run(timeout=240)
+    assert not at.exception, [e.value for e in at.exception]
+    locked = " ".join(m.value for m in at.markdown if "is a Pro feature" in m.value)
+    for feature in ("Full Assumption Doctor results", "Thesis-ready write-up and reproduce script",
+                    "Statistician Review details", "ML Trust Report"):
+        assert feature in locked, feature
+    assert not [b for b in at.button if b.key == "predict_btn"]          # live prediction is Pro
+    assert [b for b in at.button if b.key == "ml_lc_btn"]                # learning curve is free
+
+    at.session_state["pro_active"] = True
+    at.run(timeout=240)
+    assert not [m for m in at.markdown if "is a Pro feature" in m.value]
+    assert [b for b in at.button if b.key == "predict_btn"]

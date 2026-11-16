@@ -178,7 +178,7 @@ The app has 12 tabs, meant to be used roughly in order:
 | 5. Visualizations | Generate charts, heatmaps, and Q-Q plots |
 | 6. Insights | Read the AI-generated narrative report |
 | 7. PDF Report | Download the PDF report |
-| 8. ML Studio | Train 6 models, check uncertainty and fairness, make live predictions |
+| 8. ML Studio | Train 6 models; ROC, precision-recall, calibration, confusion matrix, residuals and learning curve; Pro adds the Trust Report and predictions |
 | 9. Assumption Doctor | See which test fits your data and why |
 | 10. Write-up | APA-style Methods/Results text and a reproduce script |
 | 11. Statistician Review | Design, independence, confounding and model checks; power and sample-size planning |

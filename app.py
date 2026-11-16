@@ -17,7 +17,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay, privacy
+from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay, privacy, ml_plots
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -1230,6 +1230,9 @@ with tabs[7], _guard():
                 else results
             )
             safe_dataframe(styled_results, width="stretch")
+            _fig = ml_plots.model_comparison(ml_engine)
+            if _fig is not None:
+                st.pyplot(_fig); plt.close(_fig)
 
             if ml_engine.feature_importance is not None:
                 st.markdown("#### 📈 Feature Importance")
@@ -1278,106 +1281,143 @@ with tabs[7], _guard():
                     axes[1].set_title("Residuals", fontweight="bold")
                     fig.tight_layout()
                     st.pyplot(fig); plt.close(fig)
+                    _fig = ml_plots.residuals(ml_engine)
+                    if _fig is not None:
+                        st.pyplot(_fig); plt.close(_fig)
 
-            # ── Trust report: uncertainty + fairness ─────────
-            st.markdown("---")
-            st.markdown("#### 🛡️ Trust Report")
-            if ml_engine.conformal is not None:
-                cov = st.select_slider("Coverage level", options=[0.80, 0.90, 0.95], value=0.90,
-                                       format_func=lambda v: f"{v:.0%}", key="ml_cov_level")
-                cs = ml_engine.conformal_summary(round(1 - cov, 2))
                 if is_clf:
-                    st.markdown(f"**Prediction sets:** the true class is inside the set about **{cs['target']:.0%}** "
-                                f"of the time. On the holdout data it was **{cs['observed']:.0%}** "
-                                f"(average set size {cs['avg_set_size']:.2f}; 1.00 = always sure).")
-                else:
-                    st.markdown(f"**Prediction intervals:** ± **{cs['q']:.3g}** around each prediction should "
-                                f"contain the true value about **{cs['target']:.0%}** of the time. On the holdout "
-                                f"data it did **{cs['observed']:.0%}** of the time.")
-                st.caption(f"Calibrated on {cs['n_cal']} held-back training rows (split-conformal). "
-                           "Small holdout sets make the observed number noisy.")
-            try:
-                fair_df, fair_warn = ml_engine.fairness_report(df)
-            except Exception:
-                fair_df, fair_warn = None, []
-            if fair_df is not None and not fair_df.empty:
-                st.markdown("**Performance by group (holdout set)**")
-                safe_dataframe(fair_df, width="stretch", hide_index=True)
-                if fair_warn:
-                    for w in fair_warn[:6]:
-                        st.warning(f"⚖️ {w}")
-                    st.caption("Groups with fewer than ~30 rows are noisy — treat these as prompts to look "
-                               "closer, not as proof of bias.")
-                else:
-                    st.success("No large performance gaps between groups were found on the holdout set.")
+                    _c1, _c2 = st.columns(2)
+                    for _col, _fn in ((_c1, ml_plots.roc), (_c2, ml_plots.precision_recall)):
+                        _fig = _fn(ml_engine)
+                        if _fig is not None:
+                            with _col:
+                                st.pyplot(_fig); plt.close(_fig)
+                    _fig = ml_plots.calibration(ml_engine)
+                    if _fig is not None:
+                        _c3, _ = st.columns(2)
+                        with _c3:
+                            st.pyplot(_fig); plt.close(_fig)
+                        st.caption("Calibration: points on the dashed line mean a predicted 70% really happens about 70% of the time.")
 
-            # ── Live Prediction ───────────────────────────────
-            st.markdown("---")
-            st.markdown("#### 🔮 Live Prediction")
-            st.markdown("Enter values below to get a prediction from the best model:")
-
-            input_data = {}
-            pred_cols  = st.columns(min(4, len(ml_engine.feature_cols)))
-            for i, col in enumerate(ml_engine.feature_cols):
-                with pred_cols[i % len(pred_cols)]:
-                    cat_options = ml_engine.get_categorical_options(col)
-                    if cat_options is not None:
-                        input_data[col] = st.selectbox(col, options=cat_options, key=f"pred_{col}")
-                    elif col in df.columns:
-                        col_min, col_max, col_mean = _safe_col_stats(df[col])
-                        input_data[col] = st.number_input(
-                            col, value=col_mean, min_value=col_min, max_value=col_max,
-                            key=f"pred_{col}")
+                st.markdown("#### 📉 Learning Curve")
+                st.caption("Shows whether more data would help, or whether the model is overfitting or underfitting.")
+                _yt = getattr(ml_engine, "_y_train", None)
+                _sig = (ml_engine.best_model_name, 0 if _yt is None else len(_yt))
+                if st.button("Show learning curve", key="ml_lc_btn"):
+                    with st.spinner("Training the best model on growing slices of your data…"):
+                        try:
+                            st.session_state.ml_lc = {"sig": _sig, "data": ml_plots.learning_curve_data(ml_engine)}
+                        except Exception as _e:
+                            st.session_state.ml_lc = {"sig": _sig, "data": None, "error": str(_e)[:120]}
+                _lc = st.session_state.get("ml_lc")
+                if _lc and _lc["sig"] == _sig:
+                    _fig = ml_plots.learning_curve_fig(_lc["data"])
+                    if _fig is not None:
+                        st.pyplot(_fig); plt.close(_fig)
+                        st.markdown(ml_plots.learning_curve_advice(_lc["data"]))
                     else:
-                        input_data[col] = st.number_input(col, value=0.0, key=f"pred_{col}")
+                        st.info("Not enough training rows to draw a learning curve (about 40 are needed).")
 
-            if st.button("🔮 Predict", key="predict_btn", type="primary"):
-                try:
-                    input_df   = pd.DataFrame([input_data])
-                    prediction = ml_engine.predict(input_df)[0]
-                    if not is_clf and ml_engine.results is not None:
-                        rmse_row = ml_engine.results.loc[
-                            ml_engine.results["Model"] == ml_engine.best_model_name, "Test RMSE"]
-                        if len(rmse_row):
-                            prediction = f"{float(prediction):,.3f} (± {float(rmse_row.iloc[0]):,.3f} typical error)"
-                    st.markdown(f"""
-                    <div style="background:#0a2a1a;border:1px solid #34D399;border-radius:10px;
-                        padding:20px;margin:16px 0;text-align:center;">
-                        <span style="color:#34D399;font-family:'JetBrains Mono',monospace;
-                            font-size:14px;">Prediction:</span>
-                        <span style="color:#fff;font-family:'JetBrains Mono',monospace;
-                            font-size:24px;font-weight:700;margin-left:10px;">
-                            {_html.escape(str(prediction))}
-                        </span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if ml_engine.conformal is not None:
-                        _alpha = round(1 - st.session_state.get("ml_cov_level", 0.90), 2)
-                        try:
-                            if is_clf:
-                                _set = ml_engine.predict_set(input_df, _alpha)[0]
-                                st.info(f"With {1 - _alpha:.0%} confidence the answer is one of: **{', '.join(_set)}**"
-                                        + (" — the model is sure." if len(_set) == 1 else " — the model is unsure."))
-                            else:
-                                _p, _lo, _hi = ml_engine.predict_interval(input_df, _alpha)
-                                st.info(f"{1 - _alpha:.0%} prediction interval: **{_lo[0]:,.3f} to {_hi[0]:,.3f}**")
-                        except Exception:
-                            pass
+            if has_pro():
+                # ── Trust report: uncertainty + fairness ─────────
+                st.markdown("---")
+                st.markdown("#### 🛡️ Trust Report")
+                if ml_engine.conformal is not None:
+                    cov = st.select_slider("Coverage level", options=[0.80, 0.90, 0.95], value=0.90,
+                                           format_func=lambda v: f"{v:.0%}", key="ml_cov_level")
+                    cs = ml_engine.conformal_summary(round(1 - cov, 2))
                     if is_clf:
-                        try:
-                            proba = ml_engine.predict_proba(input_df)[0]
-                            pdf_ = pd.DataFrame({"Class": ml_engine.class_labels, "Probability": proba})
-                            pdf_ = pdf_.sort_values("Probability", ascending=False).head(8)
-                            st.bar_chart(pdf_.set_index("Class"))
-                        except Exception:
-                            pass
-                except Exception as e:
-                    st.error(f"Prediction failed: {e}")
+                        st.markdown(f"**Prediction sets:** the true class is inside the set about **{cs['target']:.0%}** "
+                                    f"of the time. On the holdout data it was **{cs['observed']:.0%}** "
+                                    f"(average set size {cs['avg_set_size']:.2f}; 1.00 = always sure).")
+                    else:
+                        st.markdown(f"**Prediction intervals:** ± **{cs['q']:.3g}** around each prediction should "
+                                    f"contain the true value about **{cs['target']:.0%}** of the time. On the holdout "
+                                    f"data it did **{cs['observed']:.0%}** of the time.")
+                    st.caption(f"Calibrated on {cs['n_cal']} held-back training rows (split-conformal). "
+                               "Small holdout sets make the observed number noisy.")
+                try:
+                    fair_df, fair_warn = ml_engine.fairness_report(df)
+                except Exception:
+                    fair_df, fair_warn = None, []
+                if fair_df is not None and not fair_df.empty:
+                    st.markdown("**Performance by group (holdout set)**")
+                    safe_dataframe(fair_df, width="stretch", hide_index=True)
+                    if fair_warn:
+                        for w in fair_warn[:6]:
+                            st.warning(f"⚖️ {w}")
+                        st.caption("Groups with fewer than ~30 rows are noisy — treat these as prompts to look "
+                                   "closer, not as proof of bias.")
+                    else:
+                        st.success("No large performance gaps between groups were found on the holdout set.")
+
+                # ── Live Prediction ───────────────────────────────
+                st.markdown("---")
+                st.markdown("#### 🔮 Live Prediction")
+                st.markdown("Enter values below to get a prediction from the best model:")
+
+                input_data = {}
+                pred_cols  = st.columns(min(4, len(ml_engine.feature_cols)))
+                for i, col in enumerate(ml_engine.feature_cols):
+                    with pred_cols[i % len(pred_cols)]:
+                        cat_options = ml_engine.get_categorical_options(col)
+                        if cat_options is not None:
+                            input_data[col] = st.selectbox(col, options=cat_options, key=f"pred_{col}")
+                        elif col in df.columns:
+                            col_min, col_max, col_mean = _safe_col_stats(df[col])
+                            input_data[col] = st.number_input(
+                                col, value=col_mean, min_value=col_min, max_value=col_max,
+                                key=f"pred_{col}")
+                        else:
+                            input_data[col] = st.number_input(col, value=0.0, key=f"pred_{col}")
+
+                if st.button("🔮 Predict", key="predict_btn", type="primary"):
+                    try:
+                        input_df   = pd.DataFrame([input_data])
+                        prediction = ml_engine.predict(input_df)[0]
+                        if not is_clf and ml_engine.results is not None:
+                            rmse_row = ml_engine.results.loc[
+                                ml_engine.results["Model"] == ml_engine.best_model_name, "Test RMSE"]
+                            if len(rmse_row):
+                                prediction = f"{float(prediction):,.3f} (± {float(rmse_row.iloc[0]):,.3f} typical error)"
+                        st.markdown(f"""
+                        <div style="background:#0a2a1a;border:1px solid #34D399;border-radius:10px;
+                            padding:20px;margin:16px 0;text-align:center;">
+                            <span style="color:#34D399;font-family:'JetBrains Mono',monospace;
+                                font-size:14px;">Prediction:</span>
+                            <span style="color:#fff;font-family:'JetBrains Mono',monospace;
+                                font-size:24px;font-weight:700;margin-left:10px;">
+                                {_html.escape(str(prediction))}
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if ml_engine.conformal is not None:
+                            _alpha = round(1 - st.session_state.get("ml_cov_level", 0.90), 2)
+                            try:
+                                if is_clf:
+                                    _set = ml_engine.predict_set(input_df, _alpha)[0]
+                                    st.info(f"With {1 - _alpha:.0%} confidence the answer is one of: **{', '.join(_set)}**"
+                                            + (" — the model is sure." if len(_set) == 1 else " — the model is unsure."))
+                                else:
+                                    _p, _lo, _hi = ml_engine.predict_interval(input_df, _alpha)
+                                    st.info(f"{1 - _alpha:.0%} prediction interval: **{_lo[0]:,.3f} to {_hi[0]:,.3f}**")
+                            except Exception:
+                                pass
+                        if is_clf:
+                            try:
+                                proba = ml_engine.predict_proba(input_df)[0]
+                                pdf_ = pd.DataFrame({"Class": ml_engine.class_labels, "Probability": proba})
+                                pdf_ = pdf_.sort_values("Probability", ascending=False).head(8)
+                                st.bar_chart(pdf_.set_index("Class"))
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        st.error(f"Prediction failed: {e}")
 
             # ── Batch prediction & model export ───────────────
             if not has_pro():
                 st.markdown("---")
-                upgrade_card("Batch prediction and model download")
+                upgrade_card("ML Trust Report, live prediction, batch prediction and model download")
             else:
                 st.markdown("---")
                 st.markdown("#### 📂 Batch Prediction")
@@ -1443,20 +1483,28 @@ with tabs[8], _guard():
                           "P-Value", "P-Value (FDR)", "Effect Size", "Effect Measure", "Effect Label",
                           "Sig. after FDR"]]
             _pcfg = {c: st.column_config.NumberColumn(format="%.4f") for c in ("P-Value", "P-Value (FDR)", "Statistic", "Effect Size")}
-            safe_dataframe(show, width="stretch", hide_index=True, column_config=_pcfg)
-            with st.expander("Why was each test chosen?"):
-                for _, r in g_tbl.iterrows():
-                    st.markdown(f"**{r['Numeric Variable']} by {r['Grouping Variable']}** — {r['Why']}")
+            safe_dataframe(show if has_pro() else show.head(3), width="stretch", hide_index=True, column_config=_pcfg)
+            if not has_pro() and len(show) > 3:
+                st.info(f"Showing 3 of {len(show)} comparisons. Pro shows them all, with the reason for each test choice.")
+                upgrade_card("Full Assumption Doctor results")
+            if has_pro():
+                with st.expander("Why was each test chosen?"):
+                    for _, r in g_tbl.iterrows():
+                        st.markdown(f"**{r['Numeric Variable']} by {r['Grouping Variable']}** — {r['Why']}")
         if not c_tbl.empty:
             st.markdown("#### Correlations")
-            safe_dataframe(c_tbl[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
+            safe_dataframe((c_tbl if has_pro() else c_tbl.head(3))[["Variable 1", "Variable 2", "Recommended", "r", "P-Value",
                                 "P-Value (FDR)", "Effect Label", "Sig. after FDR"]],
                          width="stretch", hide_index=True,
                          column_config={c: st.column_config.NumberColumn(format="%.4f")
                                         for c in ("r", "P-Value", "P-Value (FDR)")})
-            with st.expander("Why Pearson or Spearman?"):
-                for _, r in c_tbl.iterrows():
-                    st.markdown(f"**{r['Variable 1']} ~ {r['Variable 2']}** — {r['Why']}")
+            if not has_pro() and len(c_tbl) > 3:
+                st.info(f"Showing 3 of {len(c_tbl)} correlations.")
+                upgrade_card("Full Assumption Doctor results")
+            if has_pro():
+                with st.expander("Why Pearson or Spearman?"):
+                    for _, r in c_tbl.iterrows():
+                        st.markdown(f"**{r['Variable 1']} ~ {r['Variable 2']}** — {r['Why']}")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 10 — Thesis-ready write-up
@@ -1470,27 +1518,32 @@ with tabs[9], _guard():
         _df = st.session_state.cleaned_df
         g_tbl, c_tbl = _advisor_tables(_df)
         wu = writeup.build_writeup(_df, st.session_state.stats_results, g_tbl, c_tbl)
-        st.markdown("#### Methods")
-        st.write(wu["methods"])
-        for section, sentences in wu["results"].items():
-            st.markdown(f"#### Results — {section}")
-            st.write(" ".join(sentences))
-        st.caption("This is a draft. Check each statement against your research question and study "
-                   "design before using it; automated analysis cannot judge causality.")
-        d1, d2, d3 = st.columns(3)
-        d1.download_button("⬇️ Write-up (Markdown)", wu["markdown"].encode("utf-8"),
-                           "statspro_writeup.md", "text/markdown", key="wu_md_dl", width="stretch")
-        if has_pro():
-            d2.download_button("⬇️ Cleaned data (CSV)", seal.csv_bytes(_df),
-                               "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
-        if has_pro():
-            script = writeup.build_script(_df.columns, st.session_state.stats_results, g_tbl, c_tbl)
-            d3.download_button("⬇️ Reproduce script (.py)", script.encode("utf-8"),
-                               "reproduce.py", "text/x-python", key="wu_py_dl", width="stretch")
-            st.caption("Put `reproduce.py` next to `cleaned_data.csv` and run `python reproduce.py cleaned_data.csv` "
-                       "to recompute every reported p-value.")
+        if not has_pro():
+            st.markdown("#### Methods (preview)")
+            st.write(wu["methods"][:300].rsplit(" ", 1)[0] + " …")
+            upgrade_card("Thesis-ready write-up and reproduce script")
         else:
-            upgrade_card("Reproducible script export")
+            st.markdown("#### Methods")
+            st.write(wu["methods"])
+            for section, sentences in wu["results"].items():
+                st.markdown(f"#### Results — {section}")
+                st.write(" ".join(sentences))
+            st.caption("This is a draft. Check each statement against your research question and study "
+                       "design before using it; automated analysis cannot judge causality.")
+            d1, d2, d3 = st.columns(3)
+            d1.download_button("⬇️ Write-up (Markdown)", wu["markdown"].encode("utf-8"),
+                               "statspro_writeup.md", "text/markdown", key="wu_md_dl", width="stretch")
+            if has_pro():
+                d2.download_button("⬇️ Cleaned data (CSV)", seal.csv_bytes(_df),
+                                   "cleaned_data.csv", "text/csv", key="wu_csv_dl", width="stretch")
+            if has_pro():
+                script = writeup.build_script(_df.columns, st.session_state.stats_results, g_tbl, c_tbl)
+                d3.download_button("⬇️ Reproduce script (.py)", script.encode("utf-8"),
+                                   "reproduce.py", "text/x-python", key="wu_py_dl", width="stretch")
+                st.caption("Put `reproduce.py` next to `cleaned_data.csv` and run `python reproduce.py cleaned_data.csv` "
+                           "to recompute every reported p-value.")
+            else:
+                upgrade_card("Reproducible script export")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 11 — Statistician Review
@@ -1509,32 +1562,36 @@ with tabs[10], _guard():
         rv = review.review(_rdf, _rtarget)
         sev_icon = {"High": "🔴", "Medium": "🟠", "Low": "🟡", "OK": "🟢"}
         (st.error if rv["counts"].get("High") else st.warning if rv["counts"].get("Medium") else st.success)(rv["verdict"])
-        for _, r in rv["findings"].iterrows():
-            with st.expander(f"{sev_icon[r['Severity']]} {r['Severity']} · {r['Area']} · {r['Finding']}",
-                             expanded=r["Severity"] == "High"):
-                st.markdown(f"**Why it matters.** {r['Why it matters']}")
-                st.markdown(f"**What to do.** {r['What to do']}")
+        if not has_pro():
+            st.info(f"{len(rv['findings'])} finding(s) were detected. Pro shows what each one means and what to do about it, plus the sample-size planner.")
+            upgrade_card("Statistician Review details")
+        else:
+            for _, r in rv["findings"].iterrows():
+                with st.expander(f"{sev_icon[r['Severity']]} {r['Severity']} · {r['Area']} · {r['Finding']}",
+                                 expanded=r["Severity"] == "High"):
+                    st.markdown(f"**Why it matters.** {r['Why it matters']}")
+                    st.markdown(f"**What to do.** {r['What to do']}")
 
-        st.markdown("### What can this data actually detect?")
-        st.caption("Smallest effect each comparison could find with 80% power at α = .05. "
-                   "A non-significant result only means 'no effect' if the data could have seen one.")
-        safe_dataframe(rv["power"], width="stretch", hide_index=True)
+            st.markdown("### What can this data actually detect?")
+            st.caption("Smallest effect each comparison could find with 80% power at α = .05. "
+                       "A non-significant result only means 'no effect' if the data could have seen one.")
+            safe_dataframe(rv["power"], width="stretch", hide_index=True)
 
-        st.markdown("### Plan a study: how many observations do I need?")
-        pc1, pc2, pc3, pc4 = st.columns(4)
-        kind_label = pc1.selectbox("Comparison", ["Two groups (t-test)", "3+ groups (ANOVA)", "Correlation"], key="pw_kind")
-        _k = {"Two groups (t-test)": "t", "3+ groups (ANOVA)": "anova", "Correlation": "corr"}[kind_label]
-        _def = {"t": 0.5, "anova": 0.25, "corr": 0.3}[_k]
-        _unit = {"t": "Cohen's d", "anova": "Cohen's f", "corr": "|r|"}[_k]
-        eff = pc2.number_input(f"Expected effect ({_unit})", 0.05, 0.99 if _k == "corr" else 3.0, _def, 0.05, key="pw_eff")
-        pwr = pc3.slider("Power", 0.5, 0.99, 0.8, 0.01, key="pw_pow")
-        grp = pc4.number_input("Groups", 3, 10, 3, key="pw_grp", disabled=_k != "anova")
-        need = review.sample_size(_k, eff, pwr, groups=int(grp))
-        st.success(f"You need about **{int(need):,}** {'observations in total' if _k == 'corr' else 'per group'} "
-                   f"to detect {_unit} = {eff:g} with {pwr:.0%} power at α = .05.")
-        st.caption("Rule of thumb for the expected effect: small / medium / large is d = 0.2 / 0.5 / 0.8, "
-                   "f = 0.1 / 0.25 / 0.4, r = 0.1 / 0.3 / 0.5. Use the smallest effect that would still matter.")
-        st.caption("These are screening checks, not a substitute for knowing how the data was collected.")
+            st.markdown("### Plan a study: how many observations do I need?")
+            pc1, pc2, pc3, pc4 = st.columns(4)
+            kind_label = pc1.selectbox("Comparison", ["Two groups (t-test)", "3+ groups (ANOVA)", "Correlation"], key="pw_kind")
+            _k = {"Two groups (t-test)": "t", "3+ groups (ANOVA)": "anova", "Correlation": "corr"}[kind_label]
+            _def = {"t": 0.5, "anova": 0.25, "corr": 0.3}[_k]
+            _unit = {"t": "Cohen's d", "anova": "Cohen's f", "corr": "|r|"}[_k]
+            eff = pc2.number_input(f"Expected effect ({_unit})", 0.05, 0.99 if _k == "corr" else 3.0, _def, 0.05, key="pw_eff")
+            pwr = pc3.slider("Power", 0.5, 0.99, 0.8, 0.01, key="pw_pow")
+            grp = pc4.number_input("Groups", 3, 10, 3, key="pw_grp", disabled=_k != "anova")
+            need = review.sample_size(_k, eff, pwr, groups=int(grp))
+            st.success(f"You need about **{int(need):,}** {'observations in total' if _k == 'corr' else 'per group'} "
+                       f"to detect {_unit} = {eff:g} with {pwr:.0%} power at α = .05.")
+            st.caption("Rule of thumb for the expected effect: small / medium / large is d = 0.2 / 0.5 / 0.8, "
+                       "f = 0.1 / 0.25 / 0.4, r = 0.1 / 0.3 / 0.5. Use the smallest effect that would still matter.")
+            st.caption("These are screening checks, not a substitute for knowing how the data was collected.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 12 — About the developer

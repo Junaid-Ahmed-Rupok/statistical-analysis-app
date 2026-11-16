@@ -393,6 +393,7 @@ class MLEngine:
         )
         self._test_pos = pos_test
         self._X_test, self._y_test = X_test, y_test
+        self._X_train, self._y_train, self._cv = X_train, y_train, cv
 
         models = self._build_models()
         self.pipelines = {
@@ -417,6 +418,11 @@ class MLEngine:
         self.results = pd.DataFrame(results)
         self._select_best_model()
         self.holdout = {"y_true": y_test, "y_pred": self.best_pipeline.predict(X_test)}
+        if self.task == "classification":
+            try:
+                self.holdout["y_proba"] = self.best_pipeline.predict_proba(X_test)
+            except Exception:
+                pass
         self._extract_feature_importance()
         self._fit_conformal(X_train, y_train)
         self._sanity_notes()
@@ -726,7 +732,10 @@ class MLEngine:
         # Store the plain state, not the object. Pickling the instance records its
         # class by reference, which fails when Streamlit has reloaded this module
         # ("not the same object as modules.ml_engine.MLEngine").
-        return {"format": self._FORMAT, "state": dict(self.__dict__)}
+        # The training rows are only needed for charts inside the app, so they are not
+        # written into a downloaded model file.
+        state = {k: v for k, v in self.__dict__.items() if k not in ("_X_train", "_y_train")}
+        return {"format": self._FORMAT, "state": state}
 
     def to_bytes(self) -> bytes:
         import io
