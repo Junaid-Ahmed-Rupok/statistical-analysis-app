@@ -419,20 +419,38 @@ def _guard(section: str = "This section"):
 # ════════════════════════════════════════════════════════════════
 # TABS
 # ════════════════════════════════════════════════════════════════
-tabs = st.tabs([
-    "📂 Upload & Overview",
-    "⚙️ Preprocessing",
-    "📊 EDA",
-    "🧪 Statistical Tests",
-    "📈 Visualizations",
-    "💡 AI Insights",
-    "📄 PDF Report",
+_main = st.tabs([
+    "📂 Data",
+    "🔍 Explore",
+    "🧪 Statistics",
     "🤖 ML Studio",
-    "🩺 Assumption Doctor",
-    "✍️ Write-up",
-    "🧑‍🏫 Statistician Review",
-    "👨‍💻 About",
+    "📄 Report & About",
 ])
+with _main[0]:
+    _t_data = st.tabs(["📂 Upload & Overview", "⚙️ Preprocessing"])
+with _main[1]:
+    _t_explore = st.tabs(["📊 EDA", "📈 Visualizations", "💡 AI Insights"])
+with _main[2]:
+    _t_stats = st.tabs(["🧪 Statistical Tests", "🩺 Assumption Doctor",
+                        "🧑‍🏫 Statistician Review", "✍️ Write-up"])
+with _main[4]:
+    _t_report = st.tabs(["📄 PDF Report", "👨‍💻 About"])
+
+# Each section below keeps its original index; only where it is shown changed.
+tabs = [
+    _t_data[0],      # 0 Upload & Overview
+    _t_data[1],      # 1 Preprocessing
+    _t_explore[0],   # 2 EDA
+    _t_stats[0],     # 3 Statistical Tests
+    _t_explore[1],   # 4 Visualizations
+    _t_explore[2],   # 5 AI Insights
+    _t_report[0],    # 6 PDF Report
+    _main[3],        # 7 ML Studio
+    _t_stats[1],     # 8 Assumption Doctor
+    _t_stats[3],     # 9 Write-up
+    _t_stats[2],     # 10 Statistician Review
+    _t_report[1],    # 11 About
+]
 
 # ════════════════════════════════════════════════════════════════
 # TAB 1 — Upload & Overview
@@ -626,7 +644,7 @@ with tabs[1], _guard():
             else:
                 upgrade_card("Cleaned CSV download")
     else:
-        st.info("Please upload data in the 'Upload & Overview' tab first.")
+        st.info("Please upload data in Data → Upload & Overview first.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 3 — EDA
@@ -779,7 +797,7 @@ with tabs[2], _guard():
             st.success("✅ No missing values in the dataset.")
 
     else:
-        st.info("Please preprocess your data in the 'Preprocessing' tab first.")
+        st.info("Please preprocess your data in Data → Preprocessing first.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 4 — Statistical Tests
@@ -884,7 +902,7 @@ with tabs[3], _guard():
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                     safe_dataframe(styled, width="stretch")
     else:
-        st.info("Please preprocess your data in the 'Preprocessing' tab first.")
+        st.info("Please preprocess your data in Data → Preprocessing first.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 5 — Visualizations
@@ -1457,7 +1475,7 @@ with tabs[7], _guard():
                 st.caption("Load with MLEngine.load(path) from this repo's modules/ml_engine.py. "
                            "Only load model files you created yourself.")
     else:
-        st.info("Please preprocess your data first in the 'Preprocessing' tab.")
+        st.info("Please preprocess your data first in Data → Preprocessing.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 9 — Assumption Doctor
@@ -1472,7 +1490,7 @@ with tabs[8], _guard():
     st.markdown("*Checks the assumptions behind every test, switches to a safer one when they fail, "
                 "and tells you why — in plain English.*")
     if st.session_state.cleaned_df is None:
-        st.info("Please preprocess your data first in the 'Preprocessing' tab.")
+        st.info("Please preprocess your data first in Data → Preprocessing.")
     else:
         g_tbl, c_tbl = _advisor_tables(st.session_state.cleaned_df)
         if g_tbl.empty and c_tbl.empty:
