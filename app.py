@@ -185,6 +185,7 @@ def _bkash_box(ns: str = "x") -> None:
                 if ok:
                     st.session_state.autopay_key = key
                     st.session_state.pro_active = True
+                    st.session_state.pro_key = key
                     st.rerun()
                 else:
                     st.error(msg)
@@ -205,7 +206,18 @@ def has_pro() -> bool:
     """Unlocked when licensing is not configured, or a valid key was entered."""
     if not licensing.pro_enabled():
         return True
-    return bool(st.session_state.get("pro_active"))
+    if not st.session_state.get("pro_active"):
+        return False
+    # Re-check signed keys on every run (cheap, offline) so a cancelled or expired key
+    # stops working immediately, even for someone who is already using the app.
+    key = st.session_state.get("pro_key")
+    if key and licensing.is_signed_key(key):
+        ok, _ = licensing.verify_any(key)
+        if not ok:
+            st.session_state.pro_active = False
+            st.session_state.pro_key = None
+            return False
+    return True
 
 
 def upgrade_card(feature: str) -> None:
@@ -308,6 +320,7 @@ with st.sidebar:
                     try:
                         ok, msg = _activate(key_in)
                         st.session_state.pro_active = ok
+                        st.session_state.pro_key = key_in.strip() if ok else None
                         (st.success if ok else st.error)(msg)
                         if ok:
                             st.rerun()
@@ -329,7 +342,7 @@ with st.sidebar:
             "your own computer (see the README).\n"
             "- Please remove names, phone numbers and IDs before uploading.")
     if st.button("🗑️ Clear my data now", key="clear_data_btn", width="stretch"):
-        _keep = {"pro_active", "autopay_key", "autopay_tries", "uploader_n"}
+        _keep = {"pro_active", "pro_key", "autopay_key", "autopay_tries", "uploader_n"}
         for _k in list(st.session_state.keys()):
             if _k not in _keep:
                 del st.session_state[_k]

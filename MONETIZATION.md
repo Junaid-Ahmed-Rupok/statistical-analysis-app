@@ -126,3 +126,18 @@ Limits: it is manual, so every sale needs you to respond, and bKash gives no
 automatic proof of payment inside the app. Always confirm the money in your own
 bKash app before sending a key. Do not change `LICENSE_SECRET` after selling keys,
 or every key issued so far stops working.
+
+
+## Stopping a customer (refund, abuse)
+
+1. Streamlit Cloud, your app, Settings, Secrets.
+2. Add or extend the line, with the customer's key (comma-separated for several):
+   ```toml
+   REVOKED_KEYS = "SP1-20261123-38U6-QIOVYB5QK5WI,SP1-..."
+   ```
+3. Save. Within a minute the app restarts. Pro stops for that key, including for a
+   person who is using the app right then, on their next click.
+
+Keep a note of which key you gave to which buyer, otherwise you will not know which one
+to cancel. (The `.license_secret` file never leaves your laptop; keep your own list of
+keys and buyers in a private spreadsheet.)

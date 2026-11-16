@@ -75,3 +75,24 @@ def test_autopay_redeem_unlocks_pro(monkeypatch):
     next(b for b in at.button if b.key == "autopay_btn_sb").click(); at.run(timeout=240)
     assert at.session_state["pro_active"] and at.session_state["autopay_key"].startswith("SP1-")
     assert not [m for m in at.markdown if "is a Pro feature" in m.value]
+
+
+def test_revoking_a_key_locks_an_active_session(monkeypatch):
+    from modules import licensing
+    secret = "a-long-random-secret-for-tests"
+    for n in ("CHECKOUT_URL", "LS_STORE_ID", "REVOKED_KEYS"):
+        monkeypatch.delenv(n, raising=False)
+    monkeypatch.setenv("BKASH_NUMBER", "01700000000")
+    monkeypatch.setenv("LICENSE_SECRET", secret)
+    key = licensing.make_key(secret, days=7)
+    at = AppTest.from_file(APP, default_timeout=240).run()
+    next(b for b in at.button if "Load Sample Dataset" in b.label).click(); at.run()
+    next(b for b in at.button if b.key == "preprocess_btn").click(); at.run(timeout=240)
+    at.text_input(key="license_key_input").set_value(key); at.run()
+    next(b for b in at.button if b.key == "license_activate_btn").click(); at.run(timeout=240)
+    assert at.session_state["pro_active"]
+
+    monkeypatch.setenv("REVOKED_KEYS", key)          # owner cancels the key
+    at.run(timeout=240)                              # the user's very next click
+    assert not at.session_state["pro_active"]
+    assert [m for m in at.markdown if "is a Pro feature" in m.value]
