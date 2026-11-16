@@ -32,7 +32,7 @@ Working on a thesis or assignment? Upload your CSV and get the right tests, plai
 
 ### 🔒 Your data
 
-StatsPro does not save your files. An uploaded CSV is processed in memory for your session only and is gone when the session ends; nothing is written to a database. The hosted demo runs on Streamlit Community Cloud, so for confidential data run it on your own machine (see Quickstart). Automated suggestions are a starting point, not a substitute for your supervisor's or statistician's judgment.
+StatsPro does not save your files. An uploaded CSV is processed in memory for your session only and is gone when the session ends; nothing is written to a database. A **Clear my data now** button removes everything instantly, and the app warns you when a column looks like personal information (names, emails, phone numbers). The hosted demo runs on Streamlit Community Cloud, so for confidential data run it on your own machine (see Quickstart). Automated suggestions are a starting point, not a substitute for your supervisor's or statistician's judgment.
 
 ---
 
@@ -40,16 +40,16 @@ StatsPro does not save your files. An uploaded CSV is processed in memory for yo
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/03-assumption-doctor.png" alt="Assumption Doctor"/><br/><sub><b>Assumption Doctor</b> — checks assumptions, switches to a safer test, explains why</sub></td>
-    <td width="50%"><img src="docs/images/05-ml-trust-report.png" alt="ML Trust Report"/><br/><sub><b>ML Trust Report</b> — calibrated prediction intervals and fairness by group</sub></td>
+    <td width="50%"><img src="docs/images/v3-01-upload.png" alt="Upload and overview"/><br/><sub><b>Upload &amp; Overview</b> — data quality score at a glance</sub></td>
+    <td width="50%"><img src="docs/images/v3-02-tests.png" alt="Statistical tests"/><br/><sub><b>Statistical Tests</b> — scale-aware tests with effect sizes and FDR correction</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/04-writeup.png" alt="Thesis-ready write-up"/><br/><sub><b>Thesis-ready write-up</b> — APA Methods and Results, plus a script that reproduces every number</sub></td>
-    <td width="50%"><img src="docs/images/06-pdf-integrity-seal.png" alt="Integrity Seal"/><br/><sub><b>Integrity Seal</b> — SHA-256 fingerprint and QR code in every PDF report</sub></td>
+    <td width="50%"><img src="docs/images/v3-03-assumption-doctor.png" alt="Assumption Doctor"/><br/><sub><b>Assumption Doctor</b> — checks assumptions, switches to a safer test, explains why</sub></td>
+    <td width="50%"><img src="docs/images/v3-04-statistician-review.png" alt="Statistician Review"/><br/><sub><b>Statistician Review</b> — independence, sample size, confounding and model checks</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/01-upload-overview.png" alt="Upload and overview"/><br/><sub><b>Upload &amp; Overview</b> — data quality score at a glance</sub></td>
-    <td width="50%"><img src="docs/images/02-statistical-tests.png" alt="Statistical tests"/><br/><sub><b>Statistical Tests</b> — scale-aware tests with effect sizes and FDR correction</sub></td>
+    <td width="50%"><img src="docs/images/v3-05-ml-studio.png" alt="ML Studio"/><br/><sub><b>ML Studio</b> — six models compared with cross-validation</sub></td>
+    <td width="50%"><img src="docs/images/v3-06-ml-charts.png" alt="ML charts"/><br/><sub><b>Model charts</b> — ROC, precision-recall, calibration, residuals, learning curve</sub></td>
   </tr>
 </table>
 
@@ -98,6 +98,13 @@ Ten tests, all with **Benjamini-Hochberg FDR correction** to control false posit
 | VIF Analysis | Multicollinearity detection | Condition Number (κ) |
 | OLS Regression | Auto-target linear modeling | R², AIC, BIC |
 
+### Statistician Review
+A senior-statistician-style second opinion before you trust a p-value:
+- Independence and repeated-measures warnings, multiple-testing exposure
+- Power analysis and sample-size planning, minimum detectable effect
+- Simpson's-paradox and confounding checks, missing-data pattern checks
+- Regression diagnostics: curvature, influential rows, heteroscedasticity
+
 ### Visualizations (15+ chart types)
 - Histograms with KDE overlay
 - Box plots with outlier markers
@@ -119,8 +126,10 @@ Ten tests, all with **Benjamini-Hochberg FDR correction** to control false posit
 - Trains 6 models simultaneously: Linear/Logistic Regression, Decision Tree, Random Forest, XGBoost, CatBoost, AdaBoost
 - 5-fold cross-validation with held-out test metrics
 - Model comparison table with the best model highlighted
-- Feature importance visualization
-- Live prediction form — enter values, get instant results
+- Permutation feature importance
+- Diagnostic charts: ROC, precision-recall, calibration, confusion matrix, residuals and learning curve (with advice on whether more data would help)
+- **Trust Report** (Pro): prediction intervals with measured coverage, fairness by group
+- Live and batch prediction, and model download (Pro)
 - Handles mixed-type columns automatically
 
 ### Export Options
@@ -167,10 +176,17 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ## Usage
 
-The app has 12 tabs, meant to be used roughly in order:
+The app has 5 main sections with sub-tabs, meant to be used roughly in order:
 
-| Tab | Purpose |
+| Section | What is inside |
 |---|---|
+| 📂 Data | Upload (or use the built-in sample) and Preprocessing |
+| 🔍 Explore | EDA, Visualizations, AI Insights |
+| 🧪 Statistics | Statistical Tests, Assumption Doctor, Statistician Review, Write-up |
+| 🤖 ML Studio | Train 6 models, diagnostic charts, Trust Report, predictions |
+| 📄 Report & About | PDF Report, About the developer |
+
+---|---|
 | 1. Upload | Load a CSV or use the built-in sample dataset |
 | 2. Preprocess | Clean data and handle outliers |
 | 3. EDA | Explore distributions and correlations |
@@ -190,11 +206,13 @@ The app has 12 tabs, meant to be used roughly in order:
 
 ```
 statistical-analysis-app/
-├── app.py                  # Main application (12 tabs)
+├── app.py                  # Main application (5 sections, 12 sub-tabs)
 ├── requirements.txt        # Runtime dependencies
 ├── requirements-dev.txt    # Test dependencies
 ├── Dockerfile, run.sh, run.bat   # Run anywhere
 ├── MONETIZATION.md         # Optional Pro licence setup
+├── AUTOPAY.md              # Optional automatic payment-to-key setup
+├── tools/                  # Licence key generator and helper scripts
 ├── index.html              # GitHub Pages landing page
 ├── keepalive.py            # Keeps the Streamlit app awake (GitHub Actions)
 ├── data/tips.csv           # Bundled sample dataset (works offline)
@@ -211,7 +229,11 @@ statistical-analysis-app/
 │   ├── insights.py         # AI insights generator
 │   ├── pdf_generator.py    # PDF report builder
 │   ├── ml_engine.py        # AutoML pipeline + Trust Report
-│   └── licensing.py        # Optional Pro licence check
+│   ├── ml_plots.py         # ROC, PR, calibration, residual and learning-curve charts
+│   ├── csv_loader.py       # Tolerant CSV reader with clear error messages
+│   ├── privacy.py          # Personal-data column detection
+│   ├── licensing.py        # Signed, expiring Pro licence keys
+│   └── autopay.py          # Optional automatic key delivery
 └── tests/                  # pytest suite (run: pip install -r requirements-dev.txt && pytest)
 ```
 
@@ -249,7 +271,7 @@ To deploy your own fork:
 <img src="https://avatars.githubusercontent.com/Junaid-Ahmed-Rupok" width="100" style="border-radius:50%"/>
 
 ### Sarder Junaid Ahmed
-**Data Scientist & Machine Learning Engineer**
+**Data Scientist & Machine Learning Engineer** · B.Sc. in CSE, RUET (Rajshahi University of Engineering & Technology), 2025
 
 *Transforming complex data into strategic decisions through rigorous statistical modeling and production-ready machine learning systems.*
 
@@ -293,9 +315,13 @@ To deploy your own fork:
 
 - **🔐 Integrity Seal & Honesty Ledger (in every PDF)** — the last page fingerprints your exact data (SHA-256, checkable with `sha256sum cleaned_data.csv` or the in-app verifier) and states how many hypotheses were tested, how many would look significant by chance alone, and how many survive multiple-testing correction.
 
-## 💎 Pro & services
+## 💎 Free vs Pro
 
-Everything analytical is free. **PDF report export, reproducible-script export, batch prediction and model download** are Pro features, unlocked by a licence key (off by default — see [MONETIZATION.md](MONETIZATION.md)). Need hands-on help? Use **Work with me** on the About tab.
+**Free:** upload, preprocessing, EDA, all charts, the basic statistical tests (normality, correlation, chi-square), AI insights, ML Studio training with model comparison and all diagnostic charts, the first rows of the Assumption Doctor, a write-up preview and the Statistician Review verdict.
+
+**Pro:** the advanced tests (ANOVA, Mann-Whitney, Levene, multicollinearity, OLS regression), the full Assumption Doctor, the full write-up and reproduce script, Statistician Review details and the sample-size planner, the ML Trust Report, live and batch prediction, model download, PDF report and cleaned CSV download.
+
+Pro is unlocked with a signed licence key that expires after 7 or 30 days, available by bKash or card. Licence setup is off by default; see [MONETIZATION.md](MONETIZATION.md). Need hands-on help? Use **Work with me** on the About tab.
 
 ## License
 
