@@ -5,7 +5,7 @@ nothing changes for visitors until you are ready.
 
 | Stream | What it is | Setup |
 |---|---|---|
-| **Pro licence** | Statistics, charts, preprocessing, AI insights and model training stay free. **PDF report, cleaned CSV download, reproduce script, batch prediction and model download** unlock with a licence key. | ~20 min, below |
+| **Pro licence** | Basic statistics, charts, preprocessing, AI insights and model training stay free. **PDF report, cleaned CSV download, reproduce script, batch prediction and model download** unlock with a licence key. | ~20 min, below |
 | **Services** | "Work with me" card on the About tab (email quote request). Already live. | none |
 | **Sponsorship** | Optional "Sponsor" button in the sidebar. | set `SPONSOR_URL` |
 
@@ -145,12 +145,12 @@ keys and buyers in a private spreadsheet.)
 
 ## What is free and what is Pro
 
-**Free:** upload, preprocessing, EDA, charts, the core statistical tests, ML Studio training with
+**Free:** upload, preprocessing, EDA, charts, the basic statistical tests (normality, correlation, chi-square), ML Studio training with
 the model comparison and all the diagnostic charts (ROC, precision-recall, calibration, confusion
 matrix, residuals, learning curve), the first 3 rows of the Assumption Doctor, a preview of the
 write-up, and the Statistician Review verdict.
 
-**Pro:** full Assumption Doctor results with explanations, the thesis write-up and reproduce
+**Pro:** the advanced statistical tests (ANOVA, Mann-Whitney, Levene, multicollinearity/VIF, OLS regression), full Assumption Doctor results with explanations, the thesis write-up and reproduce
 script, Statistician Review details and the sample-size planner, the ML Trust Report (prediction
 intervals, fairness by group), live and batch prediction, model download, PDF report, cleaned CSV.
 

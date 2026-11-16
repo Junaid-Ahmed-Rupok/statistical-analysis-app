@@ -118,3 +118,25 @@ def test_free_tier_split_when_configured(monkeypatch):
     at.run(timeout=240)
     assert not [m for m in at.markdown if "is a Pro feature" in m.value]
     assert [b for b in at.button if b.key == "predict_btn"]
+
+
+def test_advanced_stats_tests_are_pro(monkeypatch):
+    monkeypatch.setenv("CHECKOUT_URL", "https://example.lemonsqueezy.com/buy/test")
+    monkeypatch.setenv("LS_STORE_ID", "7")
+    at = AppTest.from_file(APP, default_timeout=240).run()
+    next(b for b in at.button if "Load Sample Dataset" in b.label).click(); at.run()
+    for key in ("preprocess_btn", "run_stats_btn"):
+        next(b for b in at.button if b.key == key).click(); at.run(timeout=240)
+    assert not at.exception
+    labels = [e.label for e in at.expander]
+    assert any("🔒" in l and "ANOVA" in l for l in labels)
+    assert any("🔒" in l and "OLS Regression" in l for l in labels)
+    assert any(l.startswith("📐 Chi-Square") for l in labels)          # basic test stays free
+    assert any("Normality" in l and "🔒" not in l for l in labels)
+    assert any("Advanced statistical tests" in m.value and "is a Pro feature" in m.value for m in at.markdown)
+
+    at.session_state["pro_active"] = True
+    at.run(timeout=240)
+    labels = [e.label for e in at.expander]
+    assert not any("🔒" in l and ("ANOVA" in l or "OLS" in l) for l in labels)
+    assert any("OLS Regression — Predicting" in l for l in labels)

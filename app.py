@@ -230,7 +230,7 @@ def upgrade_card(feature: str) -> None:
         <div style="color:#34D399;font-size:15px;font-weight:700;">💎 {feature} is a Pro feature</div>
         <div style="color:#bbb;font-size:13px;margin-top:6px;">
             Pro unlocks: {', '.join(licensing.PRO_FEATURES)}.
-            All statistics, charts, preprocessing, AI insights and model training stay free.
+            Basic statistics, charts, preprocessing, AI insights and model training stay free.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -846,6 +846,8 @@ with tabs[3], _guard():
                                 styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                             safe_dataframe(styled, width="stretch")
 
+            _PRO_TESTS = {"anova", "mann_whitney", "levene"}
+            _stats_locked = False
             for name, key, extra_cols in [
                 ("📐 Chi-Square Independence Test + Cramér's V Effect Size", 'chi_square',   ['Effect Size']),
                 ("📏 One-Way ANOVA + Eta-Squared (η²) Effect Size",          'anova',        ['Effect Size']),
@@ -854,6 +856,11 @@ with tabs[3], _guard():
             ]:
                 df_test = sr.get(key, pd.DataFrame())
                 if not df_test.empty:
+                    if key in _PRO_TESTS and not has_pro():
+                        with st.expander("🔒 " + name, expanded=False):
+                            st.caption("Pro feature. Unlock it with a key (see below).")
+                        _stats_locked = True
+                        continue
                     with st.expander(name, expanded=False):
                         sig_c  = _sig_col(df_test)
                         styled = df_test.style.map(_green, subset=[sig_c]) if sig_c in df_test.columns else df_test.style
@@ -863,7 +870,11 @@ with tabs[3], _guard():
                         safe_dataframe(styled, width="stretch")
 
             vif = sr.get('vif', pd.DataFrame())
-            if not vif.empty:
+            if not vif.empty and not has_pro():
+                with st.expander("🔒 🏗️ Multicollinearity Analysis — VIF Scores + Condition Number (κ)", expanded=False):
+                    st.caption("Pro feature. Unlock it with a key (see below).")
+                _stats_locked = True
+            elif not vif.empty:
                 with st.expander("🏗️ Multicollinearity Analysis — VIF Scores + Condition Number (κ)", expanded=False):
                     styled = vif.style.map(_color_vif, subset=['VIF'])
                     if 'κ Risk' in vif.columns:
@@ -887,7 +898,11 @@ with tabs[3], _guard():
 
             reg_df    = sr.get('regression', pd.DataFrame())
             ols_stats = sr.get('ols_model_stats', {})
-            if not reg_df.empty and ols_stats:
+            if not reg_df.empty and ols_stats and not has_pro():
+                with st.expander("🔒 📈 OLS Regression — R², Adj. R², F, AIC, BIC and coefficients", expanded=False):
+                    st.caption("Pro feature. Unlock it with a key (see below).")
+                _stats_locked = True
+            elif not reg_df.empty and ols_stats:
                 with st.expander(f"📈 OLS Regression — Predicting: {ols_stats.get('Target', '')} | R²={ols_stats.get('R²', 0):.3f}", expanded=True):
                     m = ols_stats
                     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
@@ -901,6 +916,8 @@ with tabs[3], _guard():
                     if 'Sig. after FDR' in reg_df.columns:
                         styled = styled.map(_color_fdr, subset=['Sig. after FDR'])
                     safe_dataframe(styled, width="stretch")
+            if _stats_locked:
+                upgrade_card("Advanced statistical tests (ANOVA, Mann-Whitney, Levene, VIF, OLS regression)")
     else:
         st.info("Please preprocess your data in Data → Preprocessing first.")
 

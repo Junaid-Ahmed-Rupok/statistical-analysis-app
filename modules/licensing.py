@@ -40,7 +40,7 @@ import urllib.request
 from typing import Optional
 
 VALIDATE_URL = "https://api.lemonsqueezy.com/v1/licenses/validate"
-PRO_FEATURES = ("PDF report export", "Cleaned CSV download", "Thesis write-up and reproduce script", "Full Assumption Doctor results", "Statistician Review details", "ML Trust Report", "Live and batch prediction", "Model download")
+PRO_FEATURES = ("Advanced statistical tests (ANOVA, Mann-Whitney, Levene, VIF, OLS regression)", "PDF report export", "Cleaned CSV download", "Thesis write-up and reproduce script", "Full Assumption Doctor results", "Statistician Review details", "ML Trust Report", "Live and batch prediction", "Model download")
 
 
 class LicenseError(Exception):
