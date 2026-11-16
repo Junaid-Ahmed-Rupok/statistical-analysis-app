@@ -55,11 +55,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Hide Streamlit chrome ──────────────────────── */
-#MainMenu, footer, header,
+#MainMenu, footer,
 [data-testid="stDecoration"],
-[data-testid="stToolbar"] {
+[data-testid="stToolbarActions"],
+[data-testid="stAppDeployButton"],
+[data-testid="stMainMenu"] {
     visibility: hidden !important;
     display: none !important;
+}
+/* Keep the top bar (it holds the "open sidebar" button) but make it invisible. */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 3rem !important;
 }
 
 /* ── App containers ─────────────────────────────── */
@@ -960,3 +967,40 @@ span[class*="material-icons"] {
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) { border-left-color: #F0A500 !important; }
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"])   { border-left-color: #E5534B !important; }
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) { border-left-color: var(--em) !important; }
+
+/* ── Sidebar reopen button: always visible and easy to see ── */
+[data-testid="stExpandSidebarButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    display: flex !important;
+    opacity: 1 !important;
+    z-index: 999999 !important;
+}
+[data-testid="stExpandSidebarButton"] button,
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button {
+    background: var(--bg-raised) !important;
+    border: 1px solid var(--em) !important;
+    border-radius: 8px !important;
+    color: var(--em) !important;
+}
+
+/* The toolbar holds the reopen button in this Streamlit version: keep it, hide only its menu items. */
+[data-testid="stToolbar"] { visibility: visible !important; display: flex !important; background: transparent !important; }
+[data-testid="stToolbar"] > div:last-child:not(:has([data-testid="stExpandSidebarButton"])) { visibility: hidden !important; }
+
+/* Make the reopen button obvious */
+button[data-testid="stExpandSidebarButton"] {
+    background: var(--bg-raised) !important;
+    border: 1px solid var(--em) !important;
+    border-radius: 8px !important;
+    color: var(--em) !important;
+    padding: 6px 10px !important;
+    margin: 10px 0 0 10px !important;
+}
+button[data-testid="stExpandSidebarButton"] * { color: var(--em) !important; }
+
+/* Tab bar scroll arrows/fade: dark, not white */
+[data-baseweb="tab-list"] ~ div, [data-baseweb="tab-border"] ~ div,
+[data-testid="stTabs"] [role="tablist"] + div { background: transparent !important; }
