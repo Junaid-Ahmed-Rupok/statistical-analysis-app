@@ -105,7 +105,9 @@ WHATSAPP_NUMBER = "8801XXXXXXXXX"                                   # optional, 
 `LICENSE_SECRET` never goes in the repo. Anyone who knows it can make keys, so
 keep it only in Secrets and on your own computer.
 
-**Each sale:**
+**Each sale (easiest way on Windows):** double-click `newkey.bat`, type 7 or 30, and the key is shown and copied to your clipboard. The first time it asks for your `LICENSE_SECRET` and saves it in `.license_secret` on your computer only (git ignores that file).
+
+**Each sale, manual commands:**
 1. The buyer opens **Pay with bKash** in the app, sends the money, and emails you
    the TrxID and their email (a pre-filled email button is provided).
 2. Check the payment arrived in your bKash app.

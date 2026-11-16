@@ -6,3 +6,6 @@ venv/
 .streamlit/secrets.toml
 .DS_Store
 catboost_info/
+
+# local licence secret (never commit)
+.license_secret
