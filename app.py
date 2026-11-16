@@ -145,6 +145,32 @@ def _check_license(key: str) -> tuple:
     )
 
 
+def _activate(key: str) -> tuple:
+    """Signed (bKash) keys are checked offline; others go to Lemon Squeezy (cached)."""
+    if licensing.is_signed_key(key):
+        return licensing.verify_any(key)
+    if not licensing.lemon_enabled():
+        return False, "That licence key is not valid."
+    return _check_license(key)
+
+
+def _bkash_box() -> None:
+    """Instructions for paying by bKash. Only shown when bKash is configured."""
+    if not licensing.bkash_enabled():
+        return
+    import urllib.parse as _up
+    number  = licensing.get_setting("BKASH_NUMBER")
+    plans   = licensing.get_setting("BKASH_PLANS")
+    contact = licensing.get_setting("BKASH_CONTACT") or licensing.get_setting("HIRE_EMAIL") or "junaidahmedrupok@gmail.com"
+    st.markdown(f"**Pay with bKash**  \n"
+                f"1. Send money to **{number}** (Send Money)." + (f"  \n   {plans}" if plans else "") +
+                "  \n2. Email your bKash **TrxID** and the email you want the key sent to."
+                "  \n3. You will receive a licence key, usually within a few hours. Paste it here.")
+    subject = _up.quote("StatsPro Pro payment (bKash)")
+    body = _up.quote("bKash TrxID: \nAmount: \nPlan (7 days / 30 days): \nMy email: \n")
+    st.link_button("✉️ Send payment details", f"mailto:{contact}?subject={subject}&body={body}", width="stretch")
+
+
 def has_pro() -> bool:
     """Unlocked when licensing is not configured, or a valid key was entered."""
     if not licensing.pro_enabled():
@@ -169,6 +195,9 @@ def upgrade_card(feature: str) -> None:
     if checkout:
         c1.link_button("Get Pro", checkout, width="stretch")
     c2.caption("Already bought it? Enter your key in the sidebar → 🔑 Pro license.")
+    if licensing.bkash_enabled():
+        with st.expander("🇧🇩 Pay with bKash"):
+            _bkash_box()
 
 
 # ════════════════════════════════════════════════════════════════
@@ -244,7 +273,7 @@ with st.sidebar:
                 key_in = st.text_input("License key", type="password", key="license_key_input")
                 if st.button("Activate", key="license_activate_btn"):
                     try:
-                        ok, msg = _check_license(key_in)
+                        ok, msg = _activate(key_in)
                         st.session_state.pro_active = ok
                         (st.success if ok else st.error)(msg)
                         if ok:
@@ -254,6 +283,7 @@ with st.sidebar:
                 checkout = licensing.get_setting("CHECKOUT_URL")
                 if checkout:
                     st.link_button("Buy Pro", checkout, width="stretch")
+                _bkash_box()
     sponsor = licensing.get_setting("SPONSOR_URL")
     if sponsor:
         st.link_button("❤️ Sponsor this project", sponsor, width="stretch")

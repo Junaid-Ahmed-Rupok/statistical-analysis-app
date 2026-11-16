@@ -33,3 +33,27 @@ def test_gated_when_configured_and_unlocks_with_valid_key(monkeypatch):
     at.session_state["pro_active"] = True      # what a successful activation sets
     at.run(timeout=240)
     assert not [m for m in at.markdown if "is a Pro feature" in m.value]
+
+
+def test_bkash_key_unlocks_pro(monkeypatch):
+    from modules import licensing
+    secret = "a-long-random-secret-for-tests"
+    for n in ("CHECKOUT_URL", "LS_STORE_ID"):
+        monkeypatch.delenv(n, raising=False)
+    monkeypatch.setenv("BKASH_NUMBER", "01700000000")
+    monkeypatch.setenv("LICENSE_SECRET", secret)
+    at = AppTest.from_file(APP, default_timeout=240).run()
+    next(b for b in at.button if "Load Sample Dataset" in b.label).click(); at.run()
+    next(b for b in at.button if b.key == "preprocess_btn").click(); at.run(timeout=240)
+    assert [m for m in at.markdown if "Cleaned CSV download is a Pro feature" in m.value]
+    assert any("Pay with bKash" in m.value for m in at.markdown)
+
+    at.text_input(key="license_key_input").set_value("SP1-20991231-AAAA-BBBBBBBBBBBB"); at.run()
+    next(b for b in at.button if b.key == "license_activate_btn").click(); at.run(timeout=240)
+    assert not at.session_state["pro_active"]
+
+    good = licensing.make_key(secret, days=7)
+    at.text_input(key="license_key_input").set_value(good); at.run()
+    next(b for b in at.button if b.key == "license_activate_btn").click(); at.run(timeout=240)
+    assert at.session_state["pro_active"]
+    assert not [m for m in at.markdown if "Cleaned CSV download is a Pro feature" in m.value]

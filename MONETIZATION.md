@@ -1,6 +1,6 @@
 # Turning StatsPro into income
 
-StatsPro makes money in two ways. Both are **off until you configure them**, so
+StatsPro makes money in three ways. Both are **off until you configure them**, so
 nothing changes for visitors until you are ready.
 
 | Stream | What it is | Setup |
@@ -84,3 +84,42 @@ Notes:
   The number that matters most is the share of uploaders who finish an analysis.
 - Do not market StatsPro as guaranteeing correct conclusions or thesis acceptance.
   The honest selling point is transparent, reproducible analysis.
+
+
+## Pay by bKash (manual, no fees to a platform)
+
+Lemon Squeezy charges 5% + 50 cents per sale, which makes sub-$3 prices
+pointless. For taka-sized prices (৳99–299) sell by **bKash Send Money** and issue
+the key yourself. No payment API or merchant account is needed.
+
+**One-time setup** (Streamlit Cloud, Settings, Secrets):
+
+```toml
+BKASH_NUMBER   = "01XXXXXXXXX"
+LICENSE_SECRET = "make-up-a-long-random-string-at-least-16-chars"   # keep private
+BKASH_PLANS    = "7 days: 199 BDT | 30 days: 299 BDT"               # shown to buyers
+BKASH_CONTACT  = "junaidahmedrupok@gmail.com"                        # optional
+```
+
+`LICENSE_SECRET` never goes in the repo. Anyone who knows it can make keys, so
+keep it only in Secrets and on your own computer.
+
+**Each sale:**
+1. The buyer opens **Pay with bKash** in the app, sends the money, and emails you
+   the TrxID and their email (a pre-filled email button is provided).
+2. Check the payment arrived in your bKash app.
+3. On your computer, from this repo:
+   ```bash
+   LICENSE_SECRET="your-secret" python tools/make_key.py --days 7
+   ```
+   (Windows PowerShell: `$env:LICENSE_SECRET="your-secret"; python tools/make_key.py --days 7`)
+4. Email the key to the buyer. They paste it in the sidebar, 🔑 Pro license.
+
+Keys are signed and carry an expiry date, so a 7-day pass really expires and the
+app needs no server to check it. For a refund add the key to `REVOKED_KEYS`
+(comma-separated) in Secrets.
+
+Limits: it is manual, so every sale needs you to respond, and bKash gives no
+automatic proof of payment inside the app. Always confirm the money in your own
+bKash app before sending a key. Do not change `LICENSE_SECRET` after selling keys,
+or every key issued so far stops working.

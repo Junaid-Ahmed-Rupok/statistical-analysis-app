@@ -12,12 +12,28 @@ Configuration (Streamlit secrets or environment variables):
     LS_PRODUCT_ID     numeric product id  } issued for YOUR store/product
     SPONSOR_URL       optional, e.g. https://github.com/sponsors/<you>
     HIRE_EMAIL        optional, defaults to the developer's address
+
+Manual bKash option (no payment API needed; works alongside Lemon Squeezy):
+    BKASH_NUMBER      your bKash number shown to buyers      } both required to
+    LICENSE_SECRET    long random string, kept ONLY in secrets } turn it on
+    BKASH_PLANS       optional text, e.g. "7 days: 199 BDT | 30 days: 299 BDT"
+    BKASH_CONTACT     optional email for payment proofs (defaults to HIRE_EMAIL)
+    REVOKED_KEYS      optional comma-separated keys to switch off (refunds)
+
+Keys for bKash buyers are made offline with `python tools/make_key.py --days 7`.
+They are signed (HMAC) and carry an expiry date, so the app verifies them without
+any server, and nobody can forge one without LICENSE_SECRET.
 """
 
 from __future__ import annotations
 
+import base64
+import datetime as dt
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,9 +58,80 @@ def get_setting(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
-def pro_enabled() -> bool:
-    """True only once the owner has configured a checkout link AND a store id."""
+def lemon_enabled() -> bool:
     return bool(get_setting("CHECKOUT_URL") and get_setting("LS_STORE_ID"))
+
+
+def bkash_enabled() -> bool:
+    return bool(get_setting("BKASH_NUMBER") and get_setting("LICENSE_SECRET"))
+
+
+def pro_enabled() -> bool:
+    """True once the owner configured Lemon Squeezy (checkout link + store id) or bKash."""
+    return lemon_enabled() or bkash_enabled()
+
+
+# ── Signed offline keys (for bKash / manual payments) ───────────────────
+KEY_PREFIX = "SP1"
+LIFETIME = "00000000"
+
+
+def _sig(secret: str, expiry: str, nonce: str) -> str:
+    mac = hmac.new(secret.encode(), f"{KEY_PREFIX}|{expiry}|{nonce}".encode(), hashlib.sha256).digest()
+    return base64.b32encode(mac).decode().rstrip("=")[:12]
+
+
+def make_key(secret: str, days: Optional[int] = 30, today: Optional[dt.date] = None) -> str:
+    """Create a key valid for *days* days from today (None = lifetime)."""
+    if not secret or len(secret) < 16:
+        raise ValueError("LICENSE_SECRET must be at least 16 characters.")
+    if days is None:
+        expiry = LIFETIME
+    else:
+        if days < 1:
+            raise ValueError("days must be at least 1")
+        expiry = ((today or dt.date.today()) + dt.timedelta(days=int(days))).strftime("%Y%m%d")
+    nonce = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(4))
+    return f"{KEY_PREFIX}-{expiry}-{nonce}-{_sig(secret, expiry, nonce)}"
+
+
+def is_signed_key(key: str) -> bool:
+    return (key or "").strip().upper().startswith(KEY_PREFIX + "-")
+
+
+def verify_signed_key(key: str, secret: str, *, revoked=(), today: Optional[dt.date] = None) -> tuple[bool, str]:
+    """Check a signed key offline. Returns (is_valid, message)."""
+    key = (key or "").strip().upper()
+    parts = key.split("-")
+    if not secret or len(parts) != 4 or parts[0] != KEY_PREFIX:
+        return False, "That licence key is not valid."
+    _, expiry, nonce, sig = parts
+    if not hmac.compare_digest(sig, _sig(secret, expiry, nonce)):
+        return False, "That licence key is not valid."
+    if key in {r.strip().upper() for r in revoked if r.strip()}:
+        return False, "This licence key has been cancelled."
+    if expiry != LIFETIME:
+        try:
+            end = dt.datetime.strptime(expiry, "%Y%m%d").date()
+        except ValueError:
+            return False, "That licence key is not valid."
+        if (today or dt.date.today()) > end:
+            return False, f"This key expired on {end:%d %b %Y}."
+        return True, f"Pro unlocked until {end:%d %b %Y}. Thank you for supporting StatsPro!"
+    return True, "Pro unlocked. Thank you for supporting StatsPro!"
+
+
+def verify_any(key: str) -> tuple[bool, str]:
+    """Route a key to the right checker using the app's settings."""
+    if is_signed_key(key):
+        if not bkash_enabled():
+            return False, "That licence key is not valid."
+        revoked = get_setting("REVOKED_KEYS").split(",")
+        return verify_signed_key(key, get_setting("LICENSE_SECRET"), revoked=revoked)
+    if not lemon_enabled():
+        return False, "That licence key is not valid."
+    return verify_key(key, store_id=get_setting("LS_STORE_ID") or None,
+                      product_id=get_setting("LS_PRODUCT_ID") or None)
 
 
 def verify_key(key: str, *, store_id: Optional[str] = None,

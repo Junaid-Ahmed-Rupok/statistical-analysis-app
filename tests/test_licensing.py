@@ -59,3 +59,60 @@ def test_licensing_is_off_until_configured(monkeypatch):
     assert licensing.pro_enabled() is False          # needs the store id too
     monkeypatch.setenv("LS_STORE_ID", "7")
     assert licensing.pro_enabled() is True
+
+
+# ── signed offline keys (bKash) ─────────────────────────────────────────
+import datetime as dt
+
+SECRET = "a-long-random-secret-for-tests"
+
+
+def test_signed_key_roundtrip_and_expiry():
+    today = dt.date(2026, 11, 16)
+    k = licensing.make_key(SECRET, days=7, today=today)
+    assert licensing.verify_signed_key(k, SECRET, today=today)[0]
+    assert licensing.verify_signed_key(k, SECRET, today=dt.date(2026, 11, 23))[0]      # last valid day
+    ok, msg = licensing.verify_signed_key(k, SECRET, today=dt.date(2026, 11, 24))
+    assert not ok and "expired" in msg
+
+
+def test_forged_or_tampered_keys_rejected():
+    k = licensing.make_key(SECRET, days=7)
+    assert not licensing.verify_signed_key(k, "another-long-random-secret-x")[0]
+    parts = k.split("-")
+    parts[1] = "20991231"                                     # try to extend the expiry
+    assert not licensing.verify_signed_key("-".join(parts), SECRET)[0]
+    assert not licensing.verify_signed_key("SP1-20991231-AAAA-BBBBBBBBBBBB", SECRET)[0]
+    assert not licensing.verify_signed_key("", SECRET)[0]
+    assert not licensing.verify_signed_key(k, "")[0]
+
+
+def test_lifetime_revocation_and_case_insensitivity():
+    k = licensing.make_key(SECRET, days=None)
+    assert licensing.verify_signed_key(k.lower(), SECRET)[0]
+    assert not licensing.verify_signed_key(k, SECRET, revoked=[k])[0]
+
+
+def test_weak_secret_and_bad_days_refused():
+    with pytest.raises(ValueError):
+        licensing.make_key("short")
+    with pytest.raises(ValueError):
+        licensing.make_key(SECRET, days=0)
+
+
+def test_keys_are_unique():
+    assert len({licensing.make_key(SECRET, 7) for _ in range(50)}) == 50
+
+
+def test_bkash_settings_switch_licensing_on(monkeypatch):
+    for n in ("CHECKOUT_URL", "LS_STORE_ID", "BKASH_NUMBER", "LICENSE_SECRET"):
+        monkeypatch.delenv(n, raising=False)
+    assert not licensing.pro_enabled()
+    monkeypatch.setenv("BKASH_NUMBER", "01700000000")
+    assert not licensing.pro_enabled()                         # needs the secret too
+    monkeypatch.setenv("LICENSE_SECRET", SECRET)
+    assert licensing.pro_enabled() and licensing.bkash_enabled() and not licensing.lemon_enabled()
+    k = licensing.make_key(SECRET, 7)
+    assert licensing.verify_any(k)[0]
+    monkeypatch.setenv("REVOKED_KEYS", k)
+    assert not licensing.verify_any(k)[0]
