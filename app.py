@@ -1617,7 +1617,7 @@ with tabs[11], _guard():
         </div>
         <p style="color:#ddd;line-height:1.7;">
             Graduated from RUET (Rajshahi University of Engineering &amp; Technology) with a B.Sc. in Computer Science &amp; Engineering (2025). I work on causal machine
-            learning and trustworthy AI — fairness, uncertainty quantification and reproducible
+            learning and trustworthy AI: fairness, uncertainty quantification and reproducible
             research. StatsPro grew out of the belief that rigorous statistics should be
             accessible to anyone with a CSV file.
         </p>
