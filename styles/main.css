@@ -1004,3 +1004,32 @@ button[data-testid="stExpandSidebarButton"] * { color: var(--em) !important; }
 /* Tab bar scroll arrows/fade: dark, not white */
 [data-baseweb="tab-list"] ~ div, [data-baseweb="tab-border"] ~ div,
 [data-testid="stTabs"] [role="tablist"] + div { background: transparent !important; }
+
+/* ── Assistant window (st.dialog) ───────────────────────────── */
+div[data-testid="stDialog"] [role="dialog"] {
+    background: var(--bg-raised) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 14px !important;
+}
+div[data-testid="stDialog"] [data-testid="stChatMessage"] {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 10px !important;
+    color: var(--text-primary) !important;
+}
+div[data-testid="stDialog"] [data-testid="stChatMessage"] p { color: var(--text-primary) !important; }
+div[data-testid="stDialog"] [data-testid="stForm"] {
+    background: var(--bg-base) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-radius: 10px !important;
+}
+div[data-testid="stDialog"] textarea {
+    background: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+}
+div[data-testid="stDialog"] [data-testid="stFormSubmitButton"] button {
+    background: var(--em) !important; color: #06251a !important; border: none !important; font-weight: 700 !important;
+}
+div[data-testid="stDialog"] div:has(> [role="dialog"]) { background: var(--bg-raised) !important; border-radius: 14px !important; }
+div[data-testid="stDialog"] [data-testid="stChatMessageContent"],
+div[data-testid="stDialog"] [data-testid="stChatMessageContent"] * { background: transparent !important; }

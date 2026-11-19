@@ -73,7 +73,7 @@ def test_autopay_redeem_unlocks_pro(monkeypatch):
     assert not at.exception, [e.value for e in at.exception]
     at.text_input(key="autopay_trx_sb").set_value("9AB1C2D3EF"); at.run()
     next(b for b in at.button if b.key == "autopay_btn_sb").click(); at.run(timeout=240)
-    assert at.session_state["pro_active"] and at.session_state["autopay_key"].startswith("SP1-")
+    assert at.session_state["pro_active"] and at.session_state["autopay_key"].startswith("SP2-")
     assert not [m for m in at.markdown if "is a Pro feature" in m.value]
 
 

@@ -18,7 +18,7 @@ from modules.visualizer import Visualizer
 from modules.insights import InsightsGenerator
 from modules.pdf_generator import PDFReportGenerator
 from modules.ml_engine import MLEngine
-from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay, privacy, ml_plots
+from modules import licensing, advisor, writeup, seal, review, csv_loader, autopay, privacy, ml_plots, assistant_ui
 
 # ── Page configuration ──────────────────────────────────────────
 st.set_page_config(
@@ -307,6 +307,11 @@ with st.sidebar:
 
 
 with st.sidebar:
+    try:
+        assistant_ui.render_button(has_pro(), st.session_state.get("pro_key"),
+                                   st.session_state.get("cleaned_df"), st.session_state.get("stats_results"))
+    except Exception:
+        import traceback; traceback.print_exc()
     if licensing.pro_enabled():
         st.markdown("---")
         if st.session_state.get("pro_active"):

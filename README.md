@@ -65,6 +65,13 @@ It's built for analysts, researchers, and data scientists who need rigorous resu
 
 ## Features at a Glance
 
+### AI Assistant (new)
+- **Ask the assistant** button in the sidebar: plain-language answers about any statistics term (t-test, p-value, ANOVA, VIF and more) and about your own results
+- **Screenshot questions:** attach an image of the part you don't understand and the assistant explains it
+- Only column names and test results are sent to the AI, never your data rows
+- Free: 5 questions a day. Pro 7-day: 15 a day. Pro 30-day: unlimited
+- Needs a free `GROQ_API_KEY` in the app secrets; without it the button is simply hidden
+
 ### Data Upload & Quality Scoring
 - Drag-and-drop CSV upload up to 200 MB
 - Built-in sample dataset for instant testing
@@ -207,6 +214,7 @@ The app has 5 main sections with sub-tabs, meant to be used roughly in order:
 ```
 statistical-analysis-app/
 ├── app.py                  # Main application (5 sections, 12 sub-tabs)
+├── modules/assistant.py    # AI assistant: glossary, quotas, Groq client (text + screenshots)
 ├── requirements.txt        # Runtime dependencies
 ├── requirements-dev.txt    # Test dependencies
 ├── Dockerfile, run.sh, run.bat   # Run anywhere
@@ -320,6 +328,8 @@ To deploy your own fork:
 **Free:** upload, preprocessing, EDA, all charts, the basic statistical tests (normality, correlation, chi-square), AI insights, ML Studio training with model comparison and all diagnostic charts, the first rows of the Assumption Doctor, a write-up preview and the Statistician Review verdict.
 
 **Pro:** the advanced tests (ANOVA, Mann-Whitney, Levene, multicollinearity, OLS regression), the full Assumption Doctor, the full write-up and reproduce script, Statistician Review details and the sample-size planner, the ML Trust Report, live and batch prediction, model download, PDF report and cleaned CSV download.
+
+**AI assistant limits:** Free 5 questions a day, Pro 7-day 15 a day, Pro 30-day unlimited.
 
 Pro is unlocked with a signed licence key that expires after 7 or 30 days, available by bKash or card. Licence setup is off by default; see [MONETIZATION.md](MONETIZATION.md). Need hands-on help? Use **Work with me** on the About tab.
 

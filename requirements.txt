@@ -13,3 +13,4 @@ openpyxl
 xgboost
 catboost
 joblib
+groq

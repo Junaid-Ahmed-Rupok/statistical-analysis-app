@@ -40,7 +40,7 @@ import urllib.request
 from typing import Optional
 
 VALIDATE_URL = "https://api.lemonsqueezy.com/v1/licenses/validate"
-PRO_FEATURES = ("Advanced statistical tests (ANOVA, Mann-Whitney, Levene, VIF, OLS regression)", "PDF report export", "Cleaned CSV download", "Thesis write-up and reproduce script", "Full Assumption Doctor results", "Statistician Review details", "ML Trust Report", "Live and batch prediction", "Model download")
+PRO_FEATURES = ("Advanced statistical tests (ANOVA, Mann-Whitney, Levene, VIF, OLS regression)", "PDF report export", "Cleaned CSV download", "Thesis write-up and reproduce script", "Full Assumption Doctor results", "Statistician Review details", "ML Trust Report", "Live and batch prediction", "Model download", "Higher AI assistant limits")
 
 
 class LicenseError(Exception):
@@ -72,44 +72,65 @@ def pro_enabled() -> bool:
 
 
 # ── Signed offline keys (for bKash / manual payments) ───────────────────
-KEY_PREFIX = "SP1"
+# SP1-<expiry>-<nonce>-<sig>        older keys: expiry only (no plan recorded)
+# SP2-<plan><expiry>-<nonce>-<sig>  newer keys: plan letter W (short plan) / M (month) / L (lifetime)
+KEY_PREFIX = "SP2"
+LEGACY_PREFIX = "SP1"
 LIFETIME = "00000000"
+SHORT_PLAN_MAX_DAYS = 10          # keys of up to 10 days are the "short" (7-day) plan
 
 
-def _sig(secret: str, expiry: str, nonce: str) -> str:
-    mac = hmac.new(secret.encode(), f"{KEY_PREFIX}|{expiry}|{nonce}".encode(), hashlib.sha256).digest()
+def _sig(secret: str, field: str, nonce: str, prefix: str = KEY_PREFIX) -> str:
+    mac = hmac.new(secret.encode(), f"{prefix}|{field}|{nonce}".encode(), hashlib.sha256).digest()
     return base64.b32encode(mac).decode().rstrip("=")[:12]
 
 
 def make_key(secret: str, days: Optional[int] = 30, today: Optional[dt.date] = None) -> str:
-    """Create a key valid for *days* days from today (None = lifetime)."""
+    """Create a key valid for *days* days from today (None = lifetime). The plan is signed into the key."""
     if not secret or len(secret) < 16:
         raise ValueError("LICENSE_SECRET must be at least 16 characters.")
     if days is None:
-        expiry = LIFETIME
+        plan, expiry = "L", LIFETIME
     else:
         if days < 1:
             raise ValueError("days must be at least 1")
+        plan = "W" if days <= SHORT_PLAN_MAX_DAYS else "M"
         expiry = ((today or dt.date.today()) + dt.timedelta(days=int(days))).strftime("%Y%m%d")
+    field = plan + expiry
     nonce = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(4))
-    return f"{KEY_PREFIX}-{expiry}-{nonce}-{_sig(secret, expiry, nonce)}"
+    return f"{KEY_PREFIX}-{field}-{nonce}-{_sig(secret, field, nonce)}"
 
 
 def is_signed_key(key: str) -> bool:
-    return (key or "").strip().upper().startswith(KEY_PREFIX + "-")
+    k = (key or "").strip().upper()
+    return k.startswith(KEY_PREFIX + "-") or k.startswith(LEGACY_PREFIX + "-")
+
+
+def key_plan(key: str) -> str:
+    """'week' for a short-plan key, otherwise 'full'. Only trust this after verify_signed_key said the key is valid:
+    the plan letter is covered by the signature, so it cannot be edited."""
+    parts = (key or "").strip().upper().split("-")
+    if len(parts) == 4 and parts[0] == KEY_PREFIX and parts[1][:1] == "W":
+        return "week"
+    return "full"
 
 
 def verify_signed_key(key: str, secret: str, *, revoked=(), today: Optional[dt.date] = None) -> tuple[bool, str]:
     """Check a signed key offline. Returns (is_valid, message)."""
     key = (key or "").strip().upper()
     parts = key.split("-")
-    if not secret or len(parts) != 4 or parts[0] != KEY_PREFIX:
+    if not secret or len(parts) != 4 or parts[0] not in (KEY_PREFIX, LEGACY_PREFIX):
         return False, "That licence key is not valid."
-    _, expiry, nonce, sig = parts
-    if not hmac.compare_digest(sig, _sig(secret, expiry, nonce)):
+    prefix, field, nonce, sig = parts
+    if not hmac.compare_digest(sig, _sig(secret, field, nonce, prefix)):
         return False, "That licence key is not valid."
     if key in {r.strip().upper() for r in revoked if r.strip()}:
         return False, "This licence key has been cancelled."
+    expiry = field
+    if prefix == KEY_PREFIX:
+        if field[:1] not in ("W", "M", "L"):
+            return False, "That licence key is not valid."
+        expiry = field[1:]
     if expiry != LIFETIME:
         try:
             end = dt.datetime.strptime(expiry, "%Y%m%d").date()

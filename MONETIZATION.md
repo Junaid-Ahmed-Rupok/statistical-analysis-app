@@ -128,6 +128,18 @@ bKash app before sending a key. Do not change `LICENSE_SECRET` after selling key
 or every key issued so far stops working.
 
 
+## AI assistant (optional, free to run)
+
+The sidebar button **Ask the assistant** appears only when `GROQ_API_KEY` is set in Streamlit Secrets
+(a free key from console.groq.com). Daily limits: Free 5 questions, 7-day key 15, 30-day key unlimited.
+Optional secret `ASSISTANT_DAILY_CAP` (default 500) caps the questions of all users together so the shared
+free Groq key is never exhausted; when it is reached the assistant pauses and the rest of StatsPro keeps working.
+
+Keys made by `tools/make_key.py` now start with `SP2-` and carry the plan (7-day, 30-day or lifetime) inside the
+signed part, so a 7-day key cannot be turned into a 30-day one. Old `SP1-` keys keep working and count as unlimited.
+Free-plan counting is per browser session, so a free user could get a fresh 5 by reopening the page; Pro limits are
+counted per key.
+
 ## Stopping a customer (refund, abuse)
 
 1. Streamlit Cloud, your app, Settings, Secrets.

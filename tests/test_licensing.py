@@ -116,3 +116,26 @@ def test_bkash_settings_switch_licensing_on(monkeypatch):
     assert licensing.verify_any(k)[0]
     monkeypatch.setenv("REVOKED_KEYS", k)
     assert not licensing.verify_any(k)[0]
+
+
+# ── plan letter inside SP2 keys ─────────────────────────────────────────
+def test_plan_is_signed_into_the_key():
+    week, month, life = (licensing.make_key(SECRET, 7), licensing.make_key(SECRET, 30), licensing.make_key(SECRET, None))
+    assert week.startswith("SP2-W") and month.startswith("SP2-M") and life.startswith("SP2-L")
+    assert [licensing.key_plan(k) for k in (week, month, life)] == ["week", "full", "full"]
+    assert all(licensing.verify_signed_key(k, SECRET)[0] for k in (week, month, life))
+
+
+def test_cannot_upgrade_a_week_key_by_editing_the_plan_letter():
+    parts = licensing.make_key(SECRET, 7).split("-")
+    parts[1] = "M" + parts[1][1:]
+    assert not licensing.verify_signed_key("-".join(parts), SECRET)[0]
+
+
+def test_old_sp1_keys_still_work_and_count_as_full():
+    import base64, hashlib, hmac
+    expiry = (dt.date.today() + dt.timedelta(days=5)).strftime("%Y%m%d")
+    mac = hmac.new(SECRET.encode(), f"SP1|{expiry}|ABCD".encode(), hashlib.sha256).digest()
+    old = f"SP1-{expiry}-ABCD-{base64.b32encode(mac).decode().rstrip('=')[:12]}"
+    assert licensing.is_signed_key(old) and licensing.verify_signed_key(old, SECRET)[0]
+    assert licensing.key_plan(old) == "full"
