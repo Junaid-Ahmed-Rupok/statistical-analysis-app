@@ -68,14 +68,14 @@ def _answer(question: str, upload, tier: str, who: str, df, stats_results) -> No
 
     shown = question.strip() or "Please explain this screenshot."
     history.append({"role": "user", "content": shown + ("  \n📷 *screenshot attached*" if image_b64 else "")})
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar="🧑"):
         st.markdown(history[-1]["content"])
     messages = assistant.build_messages(
         shown, assistant.build_context(df, stats_results), [h for h in history[:-1]],
         assistant.find_terms(shown), image_b64, mime or "image/jpeg")
     text = ""
     try:
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="📊"):
             def pieces():
                 nonlocal text
                 for p in assistant.GroqAssistant(key).stream(messages, vision=bool(image_b64)):
@@ -112,45 +112,75 @@ def _cap() -> int | None:
         return None
 
 
-@st.dialog("💬 StatsPro Assistant", width="large")
+def _starters(df, stats_results) -> list[str]:
+    if stats_results:
+        return ["Explain my results in simple words", "Which result matters most?", "What should I do next?",
+                "What is a p-value?"]
+    if df is not None:
+        return ["Is my data ready for analysis?", "Which test should I use?", "What is a t-test?",
+                "How do I handle missing values?"]
+    return ["What is a t-test?", "What does a p-value mean?", "Which test should I use?", "What can StatsPro do?"]
+
+
+def _pick() -> None:
+    st.session_state["assist_pending"] = st.session_state.get("assist_pill")
+    st.session_state["assist_pill"] = None
+
+
+def _header(tier: str, left, limit) -> None:
+    plan = PLAN_NAMES.get(tier, "Free")
+    if left is None:
+        pill, pct, tone = "Unlimited questions", 100, "#34D399"
+    else:
+        pct = int(100 * left / limit) if limit else 0
+        pill, tone = f"{left} of {limit} questions left today", ("#34D399" if left > 1 else "#fbbf24" if left == 1 else "#f87171")
+    st.markdown(f"""
+    <div class="sp-assist-head">
+      <div><div class="sp-assist-title">📊 StatsPro Assistant</div>
+      <div class="sp-assist-sub">Ask about any statistics term, your results, or attach a screenshot.</div></div>
+      <div class="sp-assist-plan"><span>{plan}</span><b style="color:{tone}">{pill}</b>
+      <div class="sp-assist-bar"><i style="width:{pct}%;background:{tone}"></i></div></div>
+    </div>""", unsafe_allow_html=True)
+
+
+@st.dialog("Assistant", width="large")
 def _window(tier: str, who: str, df, stats_results) -> None:
     limit = assistant.tier_limit(tier)
     left = assistant.quota(_cap()).remaining(who, limit)
-    plan = PLAN_NAMES.get(tier, "Free")
-    st.caption(f"{plan} plan · " + ("unlimited questions" if left is None else f"{left} of {limit} questions left today") +
-               " · Only column names and test results are shared with the AI, never your data rows.")
+    _header(tier, left, limit)
+
     kind, info = st.session_state.pop("assist_notice", (None, None))
     if kind in ("limit", "limit_paused"):
         _limit_card(tier if kind == "limit" else info, paused=kind == "limit_paused")
     elif kind:
         (st.error if kind == "error" else st.warning)(info)
-    for m in st.session_state.get("assist_msgs", []):
-        with st.chat_message(m["role"]):
+
+    msgs = st.session_state.get("assist_msgs", [])
+    if not msgs:
+        st.markdown("**Hi! I'm here to help you understand your analysis.** Tap a question, or type your own below. "
+                    "To ask about a part of the screen, attach a screenshot with the 📎 button.")
+        st.pills("Try asking", _starters(df, stats_results), key="assist_pill", on_change=_pick,
+                 label_visibility="collapsed")
+    for m in msgs:
+        with st.chat_message(m["role"], avatar="🧑" if m["role"] == "user" else "📊"):
             st.markdown(m["content"])
-    if not st.session_state.get("assist_msgs"):
-        st.markdown("Ask about any statistics term, your results, or what to do next. "
-                    "You can also attach a **screenshot** of the part you don't understand.")
-        for i, s in enumerate(STARTERS):
-            if st.button(s, key=f"assist_starter_{i}"):
-                st.session_state["assist_pending"] = s
-                st.rerun(scope="fragment")
+
     pending = st.session_state.pop("assist_pending", None)
     if pending:
         _answer(pending, None, tier, who, df, stats_results)
         st.rerun(scope="fragment")
-    with st.form("assist_form", clear_on_submit=True):
-        question = st.text_area("Your question", key="assist_q", height=90,
-                                placeholder="e.g. What is a t-test? Why is my p-value 0.03?")
-        upload = st.file_uploader("Screenshot (optional)", type=["png", "jpg", "jpeg", "webp"], key="assist_img")
-        sent = st.form_submit_button("Ask", type="primary")
-    if sent:
-        _answer(question, upload, tier, who, df, stats_results)
+
+    box = st.chat_input("Ask anything, or attach a screenshot…", key="assist_box", accept_file=True,
+                        file_type=["png", "jpg", "jpeg", "webp"], max_chars=assistant.MAX_QUESTION_CHARS)
+    if box:
+        files = getattr(box, "files", None) or []
+        _answer(getattr(box, "text", "") or "", files[0] if files else None, tier, who, df, stats_results)
         st.rerun(scope="fragment")
-    c1, c2 = st.columns(2)
-    if st.session_state.get("assist_msgs") and c1.button("Clear conversation", key="assist_clear"):
+    c1, c2 = st.columns([1, 2])
+    if msgs and c1.button("Clear conversation", key="assist_clear", icon=":material/delete:"):
         st.session_state["assist_msgs"] = []
         st.rerun(scope="fragment")
-    c2.caption("AI can make mistakes. Double-check important decisions.")
+    c2.caption("AI can make mistakes. Double-check important decisions. Your data rows are never shared.")
 
 
 def render_button(has_pro: bool, pro_key: str | None, df=None, stats_results=None) -> None:
@@ -159,5 +189,5 @@ def render_button(has_pro: bool, pro_key: str | None, df=None, stats_results=Non
         return
     tier = tier_for(has_pro, pro_key)
     who = _identity(tier, pro_key)
-    if st.button("💬 Ask the assistant", key="assist_open", width="stretch", type="primary"):
+    if st.button("💬 Ask the assistant", key="assist_open", width="stretch", type="primary", help="Plain-language help with statistics, your results, and screenshots"):
         _window(tier, who, df, stats_results)

@@ -1033,3 +1033,32 @@ div[data-testid="stDialog"] [data-testid="stFormSubmitButton"] button {
 div[data-testid="stDialog"] div:has(> [role="dialog"]) { background: var(--bg-raised) !important; border-radius: 14px !important; }
 div[data-testid="stDialog"] [data-testid="stChatMessageContent"],
 div[data-testid="stDialog"] [data-testid="stChatMessageContent"] * { background: transparent !important; }
+
+/* ── Assistant header ───────────────────────────────────────── */
+.sp-assist-head { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+    background: linear-gradient(135deg, #0a1f17 0%, #141414 70%); border:1px solid var(--border-strong);
+    border-radius:12px; padding:16px 18px; margin:0 0 14px 0; }
+.sp-assist-title { font-family: var(--font-mono); font-size:18px; font-weight:700; color: var(--em); }
+.sp-assist-sub { color: var(--text-secondary); font-size:13px; margin-top:4px; }
+.sp-assist-plan { text-align:right; font-size:12px; color: var(--text-secondary); min-width:190px; }
+.sp-assist-plan span { display:inline-block; background: var(--em-faint); border:1px solid var(--border-strong);
+    color: var(--em); border-radius:20px; padding:1px 10px; margin-right:8px; font-family: var(--font-mono); }
+.sp-assist-bar { height:5px; background:#222; border-radius:4px; margin-top:8px; overflow:hidden; }
+.sp-assist-bar i { display:block; height:100%; border-radius:4px; }
+div[data-testid="stDialog"] [data-testid="stChatInput"] { border-radius: 12px !important; }
+div[data-testid="stDialog"] [data-testid="stPills"] button { border-radius: 20px !important; }
+div[data-testid="stDialog"] [data-testid="stChatInput"],
+div[data-testid="stDialog"] [data-testid="stChatInput"] > div { background: var(--bg-surface) !important; border-color: var(--border-strong) !important; }
+div[data-testid="stDialog"] [data-testid="stChatInput"] textarea { background: transparent !important; color: var(--text-primary) !important; }
+div[data-testid="stDialog"] [data-testid="stChatInput"] button { background: var(--bg-hover) !important; color: var(--em) !important; }
+div[data-testid="stDialog"] [data-testid="stChatInput"] svg { fill: var(--em) !important; color: var(--em) !important; }
+div[data-testid="stDialog"] [data-testid="stPills"] button,
+div[data-testid="stDialog"] [data-testid="stPills"] button p {
+    background: var(--bg-surface) !important; color: var(--text-primary) !important; }
+div[data-testid="stDialog"] [data-testid="stPills"] button { border: 1px solid var(--border-strong) !important; }
+div[data-testid="stDialog"] [data-testid="stPills"] button:hover { border-color: var(--em) !important; background: var(--em-faint) !important; }
+.st-key-assist_open button { background: linear-gradient(135deg, #34D399, #1a8f64) !important; color: #06251a !important;
+    border: none !important; font-weight: 700 !important; }
+.st-key-assist_open button p { color: #06251a !important; font-weight:700 !important; }
+.st-key-assist_open button:hover { filter: brightness(1.1); }
+div[data-testid="stDialog"] [data-testid="stChatInput"] textarea::placeholder { color: #8a8a8a !important; opacity: 1 !important; }
