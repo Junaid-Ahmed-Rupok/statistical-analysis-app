@@ -1,7 +1,7 @@
 /**
  * StatsPro bKash payment sheet (Google Apps Script).
  *
- * Phone (SMS forwarder)  --POST-->  doPost  : stores {TrxID, amount} in the sheet
+ * Phone (SMS forwarder)  --POST/GET-->  doPost/doGet(action=ingest)  : stores {TrxID, amount} in the sheet
  * StatsPro server        --GET--->  doGet   : claims a TrxID once and returns its amount
  *
  * Script properties (Project Settings -> Script properties):
@@ -46,17 +46,14 @@ function parseSms_(text) {
   };
 }
 
-/** Phone -> sheet. Accepts JSON {"from","text","token"} or form fields of the same names. */
-function doPost(e) {
-  var p = {};
-  try { p = JSON.parse(e.postData.contents); } catch (err) { p = e.parameter || {}; }
-  var token = p.token || (e.parameter && e.parameter.token) || '';
+/** Shared by doPost and doGet: store a bKash payment SMS. */
+function ingest_(from, text, token) {
   if (!prop_('INGEST_TOKEN') || token !== prop_('INGEST_TOKEN')) return json_({ ok: false, error: 'bad_token' });
 
   // Only bKash. This stops bank OTPs or other SMS from ever being stored.
-  if (!/bkash/i.test(String(p.from || ''))) return json_({ ok: false, error: 'not_bkash' });
+  if (!/bkash/i.test(String(from || ''))) return json_({ ok: false, error: 'not_bkash' });
 
-  var sms = parseSms_(p.text);
+  var sms = parseSms_(text);
   if (!sms) return json_({ ok: false, error: 'not_a_payment' });
 
   var lock = LockService.getScriptLock();
@@ -70,9 +67,19 @@ function doPost(e) {
   return json_({ ok: true });
 }
 
+/** Phone -> sheet (POST). Accepts JSON {"from","text","token"} or form fields of the same names. */
+function doPost(e) {
+  var p = {};
+  try { p = JSON.parse(e.postData.contents); } catch (err) { p = e.parameter || {}; }
+  var q = e.parameter || {};
+  return ingest_(p.from || q.from || q.sender, p.text || q.text || q.msg, p.token || q.token || '');
+}
+
 /** StatsPro -> sheet. ?action=claim&trx=ID&token=CLAIM_TOKEN */
 function doGet(e) {
   var q = e.parameter || {};
+  // Phone -> sheet (GET). ?action=ingest&token=INGEST_TOKEN&from=<sender>&text=<message>
+  if (q.action === 'ingest') return ingest_(q.from || q.sender, q.text || q.msg || q.message, q.token || '');
   if (q.action !== 'claim') return json_({ ok: false, error: 'bad_request' });
   if (!prop_('CLAIM_TOKEN') || q.token !== prop_('CLAIM_TOKEN')) return json_({ ok: false, error: 'bad_token' });
   var trx = String(q.trx || '').toUpperCase().replace(/[^A-Z0-9]/g, '');

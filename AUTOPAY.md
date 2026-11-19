@@ -39,7 +39,7 @@ the open-source "SMS Forwarder" apps). Configure:
 - **Sender filter: bKash only.** This is essential. Without it, bank OTP codes could be
   forwarded. The script also refuses anything whose sender is not bKash.
 - **URL:** the Web app URL from step 1.
-- **Method:** POST, JSON body: `{"from":"%from%","text":"%text%","token":"<INGEST_TOKEN>"}`
+- **Method:** POST with a JSON body, or GET with `?action=ingest&token=<INGEST_TOKEN>&from=<sender>&text=<message>` (for apps that only build links).
   (use the app's own placeholder names for sender and message).
 
 ## 4. Test it end to end
