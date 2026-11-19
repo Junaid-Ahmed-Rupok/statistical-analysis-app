@@ -135,36 +135,60 @@ def make(models, **kw):
     return assistant.GroqAssistant("k", client=fake), fake
 
 
-def test_text_question_uses_a_text_model():
-    a, fake = make(["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct"])
+LIVE_2026 = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "whisper-large-v3",
+             "canopylabs/orpheus-v1-english", "openai/gpt-oss-safeguard-20b"]
+
+
+def test_text_question_uses_the_best_live_text_model():
+    a, fake = make(LIVE_2026)
     assert "".join(a.stream([{"role": "user", "content": "x"}])) == "Hello there"
-    assert fake.calls == ["llama-3.3-70b-versatile"]
+    assert fake.calls == ["openai/gpt-oss-120b"]
 
 
-def test_screenshot_question_uses_a_vision_model():
+def test_screenshot_question_uses_the_live_vision_model():
+    a, fake = make(LIVE_2026)
+    list(a.stream([{"role": "user", "content": "x"}], vision=True))
+    assert fake.calls == ["qwen/qwen3.8-27b"]
+
+
+def test_old_llama4_vision_model_is_still_found_if_groq_has_it():
     a, fake = make(["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct"])
     list(a.stream([{"role": "user", "content": "x"}], vision=True))
     assert fake.calls == ["meta-llama/llama-4-scout-17b-16e-instruct"]
 
 
 def test_no_vision_model_gives_a_clear_message():
-    a, _ = make(["llama-3.3-70b-versatile"])
+    a, _ = make(["openai/gpt-oss-120b", "whisper-large-v3"])
     with pytest.raises(assistant.AssistantError, match="Screenshot"):
         list(a.stream([{"role": "user", "content": "x"}], vision=True))
+
+
+def test_model_that_rejects_images_falls_through_to_the_next():
+    import groq, httpx
+    req = httpx.Request("POST", "https://api.groq.com")
+    bad = groq.BadRequestError("no images", response=httpx.Response(400, request=req), body=None)
+    a, fake = make(["qwen/qwen3.8-27b", "meta-llama/llama-4-scout-17b-16e-instruct"], fail={"qwen/qwen3.8-27b": bad})
+    assert "".join(a.stream([{"role": "user", "content": "x"}], vision=True)) == "Hello there"
+    assert len(fake.calls) == 2
+
+
+def test_reasoning_text_is_hidden_even_when_split_across_pieces():
+    a, _ = make(["openai/gpt-oss-120b"], pieces=("<thi", "nk>secret plan</th", "ink>A t-test ", "compares means."))
+    assert "".join(a.stream([{"role": "user", "content": "x"}])) == "A t-test compares means."
 
 
 def test_rate_limit_falls_back_to_next_model_and_errors_are_friendly():
     import groq, httpx
     req = httpx.Request("POST", "https://api.groq.com")
     limited = groq.RateLimitError("slow down", response=httpx.Response(429, request=req), body=None)
-    a, fake = make(["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], fail={"llama-3.3-70b-versatile": limited})
+    a, fake = make(["openai/gpt-oss-120b", "llama-3.1-8b-instant"], fail={"openai/gpt-oss-120b": limited})
     assert "".join(a.stream([{"role": "user", "content": "x"}])) == "Hello there"
-    assert fake.calls == ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
-    a, _ = make(["llama-3.3-70b-versatile"], fail={"llama-3.3-70b-versatile": limited})
+    assert fake.calls == ["openai/gpt-oss-120b", "llama-3.1-8b-instant"]
+    a, _ = make(["openai/gpt-oss-120b"], fail={"openai/gpt-oss-120b": limited})
     with pytest.raises(assistant.AssistantError, match="busy"):
         list(a.stream([{"role": "user", "content": "x"}]))
     bad = groq.AuthenticationError("no", response=httpx.Response(401, request=req), body=None)
-    a, _ = make(["llama-3.3-70b-versatile"], fail={"llama-3.3-70b-versatile": bad})
+    a, _ = make(["openai/gpt-oss-120b"], fail={"openai/gpt-oss-120b": bad})
     with pytest.raises(assistant.AssistantError) as e:
         list(a.stream([{"role": "user", "content": "x"}]))
     assert "key" not in e.value.message.lower()                              # never leaks key details to users

@@ -283,9 +283,55 @@ def prepare_image(data: bytes) -> tuple[str, str]:
 
 
 # ── model client ────────────────────────────────────────────────────────
-TEXT_MODELS = ("llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant")
-VISION_MODELS = ("meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct")
-_VISION_HINTS = ("llama-4", "vision", "scout", "maverick")
+# Groq changes its model line-up often, so models are chosen from the LIVE list by family, best first.
+TEXT_PREFERENCE = ("gpt-oss-120b", "llama-3.3-70b", "qwen", "llama-3.1-8b", "gpt-oss-20b", "llama")
+VISION_PREFERENCE = ("qwen", "llama-4", "vision", "scout", "maverick")
+FALLBACK_TEXT = ("openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant")
+FALLBACK_VISION = ("qwen/qwen3.8-27b",)
+_NOT_CHAT = ("whisper", "guard", "safeguard", "tts", "orpheus", "playai", "embed", "transcribe", "compound", "allam")
+
+
+def order_by(ids: list[str], preference: tuple[str, ...]) -> list[str]:
+    chat = [m for m in ids if not any(bad in m.lower() for bad in _NOT_CHAT)]
+    ranked = []
+    for rank, pattern in enumerate(preference):
+        ranked += [(rank, m) for m in sorted(chat) if pattern in m.lower() and m not in {r[1] for r in ranked}]
+    return [m for _, m in ranked]
+
+
+class _ThinkFilter:
+    """Hides <think>...</think> reasoning that some models stream inside the answer."""
+
+    def __init__(self):
+        self.buf, self.inside = "", False
+
+    def feed(self, piece: str) -> str:
+        self.buf += piece
+        out = ""
+        while True:
+            if self.inside:
+                end = self.buf.find("</think>")
+                if end < 0:
+                    self.buf = self.buf[-8:]
+                    return out
+                self.buf, self.inside = self.buf[end + 8:], False
+            else:
+                start = self.buf.find("<think>")
+                if start >= 0:
+                    out += self.buf[:start]
+                    self.buf, self.inside = self.buf[start + 7:], True
+                    continue
+                keep = 0
+                for n in range(min(6, len(self.buf)), 0, -1):          # a partial "<think" may arrive in pieces
+                    if "<think>".startswith(self.buf[-n:]):
+                        keep = n
+                        break
+                out += self.buf[:len(self.buf) - keep]
+                self.buf = self.buf[len(self.buf) - keep:]
+                return out
+
+    def flush(self) -> str:
+        return "" if self.inside else self.buf
 
 
 class AssistantError(Exception):
@@ -318,24 +364,21 @@ class GroqAssistant:
 
     def pick_models(self, vision: bool) -> list[str]:
         live = self.available_models()
-        wanted = VISION_MODELS if vision else TEXT_MODELS
         if live:
-            ordered = [m for m in wanted if m in live]
-            if vision:
-                ordered += [m for m in live if m not in ordered and any(h in m.lower() for h in _VISION_HINTS)
-                            and not any(b in m.lower() for b in ("guard", "whisper", "tts"))]
+            ordered = order_by(live, VISION_PREFERENCE if vision else TEXT_PREFERENCE)
             if ordered:
                 return ordered[:3]
             if vision:
                 raise AssistantError("Screenshot reading isn't available right now. Please type your question instead.")
-        return list(wanted)[:3]
+        return list(FALLBACK_VISION if vision else FALLBACK_TEXT)
 
-    def stream(self, messages: list[dict], vision: bool = False, max_tokens: int = 700) -> Iterator[str]:
+    def stream(self, messages: list[dict], vision: bool = False, max_tokens: int = 900) -> Iterator[str]:
         import groq
 
         last: Optional[AssistantError] = None
         for name in self.pick_models(vision):
             started = False
+            think = _ThinkFilter()
             try:
                 response = self.client.chat.completions.create(
                     model=name, messages=messages, temperature=0.3, max_tokens=max_tokens, stream=True)
@@ -343,8 +386,13 @@ class GroqAssistant:
                 for event in response:
                     piece = event.choices[0].delta.content if event.choices else None
                     if piece:
-                        started = True
-                        yield piece
+                        visible = think.feed(piece)
+                        if visible:
+                            started = True
+                            yield visible
+                tail = think.flush()
+                if tail:
+                    yield tail
                 return
             except groq.AuthenticationError:
                 raise AssistantError("The assistant is not set up correctly right now. Please try again later.") from None
@@ -355,15 +403,12 @@ class GroqAssistant:
             except groq.APIConnectionError:
                 raise AssistantError("Could not reach the assistant. Check your internet connection and try again.") from None
             except (groq.NotFoundError, groq.BadRequestError) as exc:
-                text = str(exc).lower()
                 if started:
                     raise AssistantError("The answer was cut off. Please ask again.") from None
-                if "decommission" in text or "not found" in text or "does not exist" in text:
-                    last = AssistantError("That assistant model is unavailable right now. Please try again shortly.")
-                    continue
-                if vision:
-                    raise AssistantError("I couldn't read that screenshot. Try a smaller, clearer crop.") from None
-                raise AssistantError("The assistant couldn't process that question. Try rephrasing it.") from None
+                last = AssistantError("I couldn't read that screenshot. Try a smaller, clearer crop." if vision
+                                      else "The assistant couldn't process that question. Try rephrasing it.")
+                log.warning("Model %s rejected the request: %s", name, str(exc)[:200])
+                continue                                  # try the next model
             except groq.APIStatusError as exc:
                 raise AssistantError(f"The assistant had a problem ({exc.status_code}). Please try again shortly.") from None
         raise last or AssistantError("The assistant is unavailable right now. Please try again shortly.")
